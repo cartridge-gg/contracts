@@ -6,7 +6,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import unsigned_div_rem
 from starkware.cairo.common.alloc import alloc
 
-from src.str import string, literal_from_number, str_from_literal, str_concat_array
+from src.util.str import string, literal_from_number, str_from_literal, str_concat_array
 
 #
 # v0.1: support flat structure:
@@ -97,7 +97,7 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     return (string(6, arr))
 end
 
-func str_from_svg_rect{range_check_ptr}(svg_rect : SvgCircle) -> (str : string):
+func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     alloc_locals
 
     # Format:

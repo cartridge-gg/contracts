@@ -103,7 +103,9 @@ end
 func tokenURI{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     tokenId : Uint256
 ) -> (tokenURI_len : felt, tokenURI : felt*):
-    let (str : string) = str_concat(return_svg_header(300, 300), str_from_literal('</svg>'))
+    let (header: string) = return_svg_header(300, 300)
+    let (footer: string) = str_from_literal('</svg>')
+    let (str : string) = str_concat(header, footer)
     return (tokenURI_len=str.arr_len, tokenURI=str.arr)
 end
 
