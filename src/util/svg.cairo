@@ -5,6 +5,8 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import unsigned_div_rem
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.registers import get_fp_and_pc
+from starkware.starknet.common.syscalls import get_caller_address
 
 from src.util.str import string, literal_from_number, str_from_literal, str_concat_array
 
@@ -129,6 +131,91 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     assert arr[12] = '" />'
 
     return (string(13, arr))
+end
+
+struct Cell:
+    member row : felt
+    member col : felt
+    member val : felt
+end
+
+func init_cell{range_check_ptr}(cell: Cell*, seed):
+    let (_, event) = unsigned_div_rem(seed, 2)
+    if event == 1:
+        cell.val = 1
+    end
+
+    return ()
+end
+
+func init_cell_list{range_check_ptr}(cell_list : Cell*, n_steps):
+    let (user_id) = get_caller_address()
+    let (seed) = unsigned_div_rem(user_id, n_steps)
+    init_cell(cell=cell_list, seed)
+
+    if n_steps == 0:
+        return ()
+    end
+
+    init_cell_list(cell_list=cell_list + Cell.SIZE, n_steps=n_steps - 1)
+    return ()
+end
+
+func init_grid{range_check_ptr}() -> (grid : felt**):
+    alloc_locals
+
+    local grid_tuple : (
+        Cell, Cell, Cell, Cell,
+        Cell, Cell, Cell, Cell,
+        Cell, Cell, Cell, Cell,
+        Cell, Cell, Cell, Cell,
+        Cell, Cell, Cell, Cell,
+        Cell, Cell, Cell, Cell,
+        Cell, Cell, Cell, Cell,
+        Cell, Cell, Cell, Cell
+    ) = (
+        Cell(row=0, col=0),
+        Cell(row=0, col=1),
+        Cell(row=0, col=2),
+        Cell(row=0, col=3),
+        Cell(row=1, col=0),
+        Cell(row=1, col=1),
+        Cell(row=1, col=2),
+        Cell(row=1, col=3),
+        Cell(row=2, col=0),
+        Cell(row=2, col=1),
+        Cell(row=2, col=2),
+        Cell(row=2, col=3),
+        Cell(row=3, col=0),
+        Cell(row=3, col=1),
+        Cell(row=3, col=2),
+        Cell(row=3, col=3),
+        Cell(row=4, col=0),
+        Cell(row=4, col=1),
+        Cell(row=4, col=2),
+        Cell(row=4, col=3),
+        Cell(row=5, col=0),
+        Cell(row=5, col=1),
+        Cell(row=5, col=2),
+        Cell(row=5, col=3),
+        Cell(row=6, col=0),
+        Cell(row=6, col=1),
+        Cell(row=6, col=2),
+        Cell(row=6, col=3),
+        Cell(row=7, col=0),
+        Cell(row=7, col=1),
+        Cell(row=7, col=2),
+        Cell(row=7, col=3),
+        )
+
+    # Get the value of the frame pointer register (fp) so that
+    # we can use the address of grid_tuple.
+    let (__fp__, _) = get_fp_and_pc()
+    # Since the tuple elements are next to each other we can use the
+    # address of grid_tuple as a pointer to the 5 locations.
+    init_cell_list(cell_list=cast(&grid_tuple, Location*), n_steps=31)
+
+    return ()
 end
 
 #

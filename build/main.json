@@ -27844,6 +27844,25 @@
                 "destination": "starkware.cairo.common.math.unsigned_div_rem",
                 "type": "alias"
             },
+            "src.util.svg.Cell": {
+                "full_name": "src.util.svg.Cell",
+                "members": {
+                    "col": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "row": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "val": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    }
+                },
+                "size": 3,
+                "type": "struct"
+            },
             "src.util.svg.HashBuiltin": {
                 "destination": "starkware.cairo.common.cairo_builtins.HashBuiltin",
                 "type": "alias"
@@ -27956,6 +27975,14 @@
             },
             "src.util.svg.alloc": {
                 "destination": "starkware.cairo.common.alloc.alloc",
+                "type": "alias"
+            },
+            "src.util.svg.get_caller_address": {
+                "destination": "starkware.starknet.common.syscalls.get_caller_address",
+                "type": "alias"
+            },
+            "src.util.svg.get_fp_and_pc": {
+                "destination": "starkware.cairo.common.registers.get_fp_and_pc",
                 "type": "alias"
             },
             "src.util.svg.literal_from_number": {
