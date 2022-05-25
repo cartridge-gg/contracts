@@ -3,10 +3,12 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.math import unsigned_div_rem, split_felt
+from starkware.cairo.common.math import unsigned_div_rem, split_felt, assert_not_zero
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_caller_address
+from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.squash_dict import squash_dict
 
 from src.util.str import string, literal_from_number, str_from_literal, str_concat
 
@@ -80,9 +82,9 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     assert arr[1] = x_literal
     assert arr[2] = '" y="'
     assert arr[3] = y_literal
-    assert arr[4] = '" w="'
+    assert arr[4] = '" width="'
     assert arr[5] = w_literal
-    assert arr[6] = '" h="'
+    assert arr[6] = '" height="'
     assert arr[7] = h_literal
     assert arr[8] = '" fill="'
     assert arr[9] = svg_rect.fill
@@ -94,33 +96,40 @@ end
 struct Cell:
     member row : felt
     member col : felt
-    member val : felt
 end
 
-func init_cell_list{range_check_ptr}(cell_list : Cell*, seed, n_steps, initialized_cell_list : Cell*) -> (initialized_cell_list : Cell*):
+func init_cell_list{range_check_ptr}(cell_list : Cell*, seed, n_steps, dict : DictAccess*) -> (
+    dict : DictAccess*
+):
     if n_steps == 0:
-        return (initialized_cell_list=initialized_cell_list)
+        return (dict=dict)
     end
 
     let (prob, _) = unsigned_div_rem(seed, n_steps + 1)
     let (_, event) = unsigned_div_rem(prob, 2)
 
-    assert initialized_cell_list.row = cell_list.row
-    assert initialized_cell_list.col = cell_list.col
+    %{ print(ids.n_steps, ids.seed, ids.prob, ids.event) %}
 
+    assert dict.key = 32 - n_steps
 
-    # if event == 1:
-    assert initialized_cell_list.val = 1
-    tempvar range_check_ptr = range_check_ptr
-    # else:
-    #     tempvar range_check_ptr = range_check_ptr
-    # end
+    if event == 0:
+        assert dict.prev_value = 1
+        assert dict.new_value = 1
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        assert dict.prev_value = 0
+        assert dict.new_value = 0
+        tempvar range_check_ptr = range_check_ptr
+    end
 
-
-    return init_cell_list(cell_list=cell_list + Cell.SIZE, seed=seed, n_steps=n_steps - 1, initialized_cell_list=initialized_cell_list + Cell.SIZE)
+    return init_cell_list(
+        cell_list=cell_list + Cell.SIZE, seed=seed, n_steps=n_steps - 1, dict=dict + DictAccess.SIZE
+    )
 end
 
-func render{range_check_ptr}(cell_list : Cell*, svg_str : string, n_steps) -> (svg_str : string):
+func render{range_check_ptr}(dict : DictAccess*, cell_list : Cell*, svg_str : string, n_steps) -> (
+    svg_str : string
+):
     alloc_locals
 
     if n_steps == 0:
@@ -129,14 +138,16 @@ func render{range_check_ptr}(cell_list : Cell*, svg_str : string, n_steps) -> (s
 
     tempvar range_check_ptr = range_check_ptr
 
-    if cell_list.val == 0:
+    let cell : Cell* = cell_list + (Cell.SIZE * dict.key)
+
+    if dict.prev_value == 0:
         tempvar fill = '#000'
     else:
         tempvar fill = '#fff'
     end
 
-    let x_offset = 40 * cell_list.row
-    let y_offset = 40 * cell_list.col
+    let x_offset = 40 * cell.row
+    let y_offset = 40 * cell.col
 
     let (x_fp2) = numfp2_from_felt(x_offset)
     let (y_fp2) = numfp2_from_felt(y_offset)
@@ -146,10 +157,12 @@ func render{range_check_ptr}(cell_list : Cell*, svg_str : string, n_steps) -> (s
     let (rect_str : string) = str_from_svg_rect(svg_rect)
     let (next_svg_str) = str_concat(svg_str, rect_str)
 
-    return render(cell_list=cell_list + Cell.SIZE, svg_str=next_svg_str, n_steps=n_steps - 1)
+    return render(
+        dict=dict + DictAccess.SIZE, cell_list=cell_list, svg_str=next_svg_str, n_steps=n_steps - 1
+    )
 end
 
-func generate_character{syscall_ptr : felt*, range_check_ptr}() -> (svg_str : string):
+func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (svg_str : string):
     alloc_locals
 
     local grid_tuple : (
@@ -186,54 +199,63 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}() -> (svg_str : st
         Cell,
         Cell,
     ) = (
-        Cell(row=0, col=0, val=0),
-        Cell(row=0, col=1, val=0),
-        Cell(row=0, col=2, val=0),
-        Cell(row=0, col=3, val=0),
-        Cell(row=1, col=0, val=0),
-        Cell(row=1, col=1, val=0),
-        Cell(row=1, col=2, val=0),
-        Cell(row=1, col=3, val=0),
-        Cell(row=2, col=0, val=0),
-        Cell(row=2, col=1, val=0),
-        Cell(row=2, col=2, val=0),
-        Cell(row=2, col=3, val=0),
-        Cell(row=3, col=0, val=0),
-        Cell(row=3, col=1, val=0),
-        Cell(row=3, col=2, val=0),
-        Cell(row=3, col=3, val=0),
-        Cell(row=4, col=0, val=0),
-        Cell(row=4, col=1, val=0),
-        Cell(row=4, col=2, val=0),
-        Cell(row=4, col=3, val=0),
-        Cell(row=5, col=0, val=0),
-        Cell(row=5, col=1, val=0),
-        Cell(row=5, col=2, val=0),
-        Cell(row=5, col=3, val=0),
-        Cell(row=6, col=0, val=0),
-        Cell(row=6, col=1, val=0),
-        Cell(row=6, col=2, val=0),
-        Cell(row=6, col=3, val=0),
-        Cell(row=7, col=0, val=0),
-        Cell(row=7, col=1, val=0),
-        Cell(row=7, col=2, val=0),
-        Cell(row=7, col=3, val=0),
+        Cell(row=0, col=0),
+        Cell(row=0, col=1),
+        Cell(row=0, col=2),
+        Cell(row=0, col=3),
+        Cell(row=1, col=0),
+        Cell(row=1, col=1),
+        Cell(row=1, col=2),
+        Cell(row=1, col=3),
+        Cell(row=2, col=0),
+        Cell(row=2, col=1),
+        Cell(row=2, col=2),
+        Cell(row=2, col=3),
+        Cell(row=3, col=0),
+        Cell(row=3, col=1),
+        Cell(row=3, col=2),
+        Cell(row=3, col=3),
+        Cell(row=4, col=0),
+        Cell(row=4, col=1),
+        Cell(row=4, col=2),
+        Cell(row=4, col=3),
+        Cell(row=5, col=0),
+        Cell(row=5, col=1),
+        Cell(row=5, col=2),
+        Cell(row=5, col=3),
+        Cell(row=6, col=0),
+        Cell(row=6, col=1),
+        Cell(row=6, col=2),
+        Cell(row=6, col=3),
+        Cell(row=7, col=0),
+        Cell(row=7, col=1),
+        Cell(row=7, col=2),
+        Cell(row=7, col=3),
         )
 
     let (__fp__, _) = get_fp_and_pc()
-    let (user_id) = get_caller_address()
-    let (left, right) = split_felt(user_id)
+    %{ print(ids.seed) %}
 
-    let (local empty_cell_list : Cell*) = alloc()
+    let (local dict_start : DictAccess*) = alloc()
+    let (local squashed_dict : DictAccess*) = alloc()
 
-    let (initialized_cell_list) = init_cell_list(
-        cell_list=cast(&grid_tuple, Cell*), seed=right, n_steps=30, initialized_cell_list=empty_cell_list
+    assert_not_zero(seed)
+
+    let (dict_end) = init_cell_list(
+        cell_list=cast(&grid_tuple, Cell*), seed=seed, n_steps=32, dict=dict_start
     )
+
+    let (squashed_dict_end : DictAccess*) = squash_dict(
+        dict_accesses=dict_start, dict_accesses_end=dict_end, squashed_dict=squashed_dict
+    )
+
+    assert squashed_dict_end - squashed_dict = 32 *
+        DictAccess.SIZE
 
     # On a canvas of 300 x 300,
     let (header_str : string) = return_svg_header(320, 320)
     let (render_str : string) = render(
-        cell_list=initialized_cell_list, svg_str=header_str, n_steps=2
+        dict=squashed_dict, cell_list=cast(&grid_tuple, Cell*), svg_str=header_str, n_steps=32
     )
     let (close_str : string) = str_from_literal('</svg>')
     let (svg_str) = str_concat(render_str, close_str)

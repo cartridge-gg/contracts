@@ -3,6 +3,7 @@ import os
 
 import pytest
 from starkware.starknet.testing.starknet import Starknet
+from starkware.starknet.compiler.compile import compile_starknet_files
 
 # The path to the contract source code.
 CONTRACT_FILE = os.path.join("src", "fixtures", "svg.cairo")
@@ -16,9 +17,13 @@ async def test_generate_character():
     # system.
     starknet = await Starknet.empty()
 
+    contract_def = compile_starknet_files(
+        files=[CONTRACT_FILE], disable_hint_validation=True
+    )
+
     # Deploy the contract.
     contract = await starknet.deploy(
-        source=CONTRACT_FILE,
+        contract_def=contract_def,
     )
 
     # Check the result of get_balance().
