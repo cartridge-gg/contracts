@@ -9,6 +9,7 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.squash_dict import squash_dict
+from starkware.cairo.common.math_cmp import is_le
 
 from src.util.str import string, literal_from_number, str_from_literal, str_concat
 
@@ -108,8 +109,6 @@ func init_cell_list{range_check_ptr}(cell_list : Cell*, seed, n_steps, dict : Di
     let (prob, _) = unsigned_div_rem(seed, n_steps + 1)
     let (_, event) = unsigned_div_rem(prob, 2)
 
-    %{ print(ids.n_steps, ids.seed, ids.prob, ids.event) %}
-
     assert dict.key = 32 - n_steps
 
     if event == 0:
@@ -124,6 +123,71 @@ func init_cell_list{range_check_ptr}(cell_list : Cell*, seed, n_steps, dict : Di
 
     return init_cell_list(
         cell_list=cell_list + Cell.SIZE, seed=seed, n_steps=n_steps - 1, dict=dict + DictAccess.SIZE
+    )
+end
+
+func num_neighbors{range_check_ptr}(cell_list : Cell*, n_steps, dict : DictAccess*) -> (num: felt):
+    alloc_locals
+
+    let (check_above) = is_le(n_steps, 3)
+    if check_above != 0:
+        let cell : DictAccess* = dict + (DictAccess.SIZE * 4)
+        tempvar above = cell.prev_value
+    else:
+        tempvar above = 0
+    end
+
+    let (check_below) = is_le(28, n_steps)
+    if check_below != 0:
+        let cell : DictAccess* = dict - (DictAccess.SIZE * 4)
+        tempvar below = cell.prev_value
+    else:
+        tempvar below = 0
+    end
+    
+    let (_, x) = unsigned_div_rem(n_steps, 4)
+
+    let (check_left) = is_le(0, x)
+    if check_left != 0:
+        let cell : DictAccess* = dict - DictAccess.SIZE
+        tempvar left = cell.prev_value
+    else:
+        tempvar left = 0
+    end
+
+    let (check_right) = is_le(x, 3)
+    if check_right != 0:
+        let cell : DictAccess* = dict + DictAccess.SIZE
+        tempvar right = cell.prev_value
+    else:
+        tempvar right = 0
+    end
+
+    let n = above + below + left + right
+    return (num=n)
+end
+
+func grow{range_check_ptr}(cell_list : Cell*, n_steps, dict : DictAccess*) -> (
+    dict : DictAccess*
+):
+    if n_steps == 0:
+        return (dict=dict)
+    end
+
+    assert dict.key = 32 - n_steps
+
+    if event == 0:
+        assert dict.prev_value = 1
+        assert dict.new_value = 1
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        assert dict.prev_value = 0
+        assert dict.new_value = 0
+        tempvar range_check_ptr = range_check_ptr
+    end
+
+    return grow(
+        cell_list=cell_list + Cell.SIZE, n_steps=n_steps - 1, dict=dict + DictAccess.SIZE
     )
 end
 
@@ -146,19 +210,28 @@ func render{range_check_ptr}(dict : DictAccess*, cell_list : Cell*, svg_str : st
         tempvar fill = '#fff'
     end
 
-    let x_offset = 30 * cell.col
-    let y_offset = 30 * cell.row
-
-    let (x_fp2) = numfp2_from_felt(x_offset)
-    let (y_fp2) = numfp2_from_felt(y_offset)
     let (wh_fp2) = numfp2_from_felt(30)
+    let y_offset = 30 * cell.row
+    let (y_fp2) = numfp2_from_felt(y_offset)
 
-    let svg_rect = SvgRect(x=x_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
-    let (rect_str : string) = str_from_svg_rect(svg_rect)
+    let x1_offset = 30 * cell.col
+    let (x1_fp2) = numfp2_from_felt(x1_offset)
+
+    tempvar fill = fill
+
+    let svg_rect_left = SvgRect(x=x1_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
+    let (rect_str : string) = str_from_svg_rect(svg_rect_left)
     let (next_svg_str) = str_concat(svg_str, rect_str)
 
+    let x2_offset = 270 - (30 * cell.col)
+    let (x2_fp2) = numfp2_from_felt(x2_offset)
+
+    let svg_rect_right = SvgRect(x=x2_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
+    let (rect_str : string) = str_from_svg_rect(svg_rect_right)
+    let (final_svg_str) = str_concat(next_svg_str, rect_str)
+
     return render(
-        dict=dict + DictAccess.SIZE, cell_list=cell_list, svg_str=next_svg_str, n_steps=n_steps - 1
+        dict=dict + DictAccess.SIZE, cell_list=cell_list, svg_str=final_svg_str, n_steps=n_steps - 1
     )
 end
 
@@ -199,42 +272,17 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (sv
         Cell,
         Cell,
     ) = (
-        Cell(row=1, col=1),
-        Cell(row=1, col=2),
-        Cell(row=1, col=3),
-        Cell(row=1, col=4),
-        Cell(row=2, col=1),
-        Cell(row=2, col=2),
-        Cell(row=2, col=3),
-        Cell(row=2, col=4),
-        Cell(row=3, col=1),
-        Cell(row=3, col=2),
-        Cell(row=3, col=3),
-        Cell(row=3, col=4),
-        Cell(row=4, col=1),
-        Cell(row=4, col=2),
-        Cell(row=4, col=3),
-        Cell(row=4, col=4),
-        Cell(row=5, col=1),
-        Cell(row=5, col=2),
-        Cell(row=5, col=3),
-        Cell(row=5, col=4),
-        Cell(row=6, col=1),
-        Cell(row=6, col=2),
-        Cell(row=6, col=3),
-        Cell(row=6, col=4),
-        Cell(row=7, col=1),
-        Cell(row=7, col=2),
-        Cell(row=7, col=3),
-        Cell(row=7, col=4),
-        Cell(row=8, col=1),
-        Cell(row=8, col=2),
-        Cell(row=8, col=3),
-        Cell(row=8, col=4),
+        Cell(row=1, col=1), Cell(row=1, col=2), Cell(row=1, col=3), Cell(row=1, col=4),
+        Cell(row=2, col=1), Cell(row=2, col=2), Cell(row=2, col=3), Cell(row=2, col=4),
+        Cell(row=3, col=1), Cell(row=3, col=2), Cell(row=3, col=3), Cell(row=3, col=4),
+        Cell(row=4, col=1), Cell(row=4, col=2), Cell(row=4, col=3), Cell(row=4, col=4),
+        Cell(row=5, col=1), Cell(row=5, col=2), Cell(row=5, col=3), Cell(row=5, col=4),
+        Cell(row=6, col=1), Cell(row=6, col=2), Cell(row=6, col=3), Cell(row=6, col=4),
+        Cell(row=7, col=1), Cell(row=7, col=2), Cell(row=7, col=3), Cell(row=7, col=4),
+        Cell(row=8, col=1), Cell(row=8, col=2), Cell(row=8, col=3), Cell(row=8, col=4),
         )
 
     let (__fp__, _) = get_fp_and_pc()
-    %{ print(ids.seed) %}
 
     let (local dict_start : DictAccess*) = alloc()
     let (local squashed_dict : DictAccess*) = alloc()
