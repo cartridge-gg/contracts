@@ -146,12 +146,12 @@ func render{range_check_ptr}(dict : DictAccess*, cell_list : Cell*, svg_str : st
         tempvar fill = '#fff'
     end
 
-    let x_offset = 40 * cell.row
-    let y_offset = 40 * cell.col
+    let x_offset = 30 * cell.col
+    let y_offset = 30 * cell.row
 
     let (x_fp2) = numfp2_from_felt(x_offset)
     let (y_fp2) = numfp2_from_felt(y_offset)
-    let (wh_fp2) = numfp2_from_felt(40)
+    let (wh_fp2) = numfp2_from_felt(30)
 
     let svg_rect = SvgRect(x=x_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
     let (rect_str : string) = str_from_svg_rect(svg_rect)
@@ -199,38 +199,38 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (sv
         Cell,
         Cell,
     ) = (
-        Cell(row=0, col=0),
-        Cell(row=0, col=1),
-        Cell(row=0, col=2),
-        Cell(row=0, col=3),
-        Cell(row=1, col=0),
         Cell(row=1, col=1),
         Cell(row=1, col=2),
         Cell(row=1, col=3),
-        Cell(row=2, col=0),
+        Cell(row=1, col=4),
         Cell(row=2, col=1),
         Cell(row=2, col=2),
         Cell(row=2, col=3),
-        Cell(row=3, col=0),
+        Cell(row=2, col=4),
         Cell(row=3, col=1),
         Cell(row=3, col=2),
         Cell(row=3, col=3),
-        Cell(row=4, col=0),
+        Cell(row=3, col=4),
         Cell(row=4, col=1),
         Cell(row=4, col=2),
         Cell(row=4, col=3),
-        Cell(row=5, col=0),
+        Cell(row=4, col=4),
         Cell(row=5, col=1),
         Cell(row=5, col=2),
         Cell(row=5, col=3),
-        Cell(row=6, col=0),
+        Cell(row=5, col=4),
         Cell(row=6, col=1),
         Cell(row=6, col=2),
         Cell(row=6, col=3),
-        Cell(row=7, col=0),
+        Cell(row=6, col=4),
         Cell(row=7, col=1),
         Cell(row=7, col=2),
         Cell(row=7, col=3),
+        Cell(row=7, col=4),
+        Cell(row=8, col=1),
+        Cell(row=8, col=2),
+        Cell(row=8, col=3),
+        Cell(row=8, col=4),
         )
 
     let (__fp__, _) = get_fp_and_pc()
@@ -253,7 +253,7 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (sv
         DictAccess.SIZE
 
     # On a canvas of 300 x 300,
-    let (header_str : string) = return_svg_header(320, 320)
+    let (header_str : string) = return_svg_header(300, 300)
     let (render_str : string) = render(
         dict=squashed_dict, cell_list=cast(&grid_tuple, Cell*), svg_str=header_str, n_steps=32
     )
