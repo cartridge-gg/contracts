@@ -1,3 +1,3 @@
 # Build and test
 build :; nile compile
-test  :; pytest tests/ -s
+test  :; pytest tests/account/test_Account.py -s

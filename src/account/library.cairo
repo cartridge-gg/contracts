@@ -5,6 +5,7 @@ from starkware.starknet.common.syscalls import get_contract_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
 
@@ -13,6 +14,7 @@ from openzeppelin.introspection.ERC165 import ERC165
 from openzeppelin.utils.constants import IACCOUNT_ID
 
 from src.account.IPlugin import IPlugin
+from openzeppelin.account.library import Call, AccountCallArray
 
 const USE_PLUGIN_SELECTOR = 1121675007639292412441492001821602921366030142137563176027248191276862353634
 
@@ -25,31 +27,15 @@ func Account_current_nonce() -> (res: felt):
 end
 
 @storage_var
-func Account_public_key() -> (res: felt):
+func Account_default_plugin() -> (res: felt):
 end
 
 @storage_var
 func Account_plugins(plugin: felt) -> (res: felt):
 end
 
-#
-# Structs
-#
-
-struct Call:
-    member to: felt
-    member selector: felt
-    member calldata_len: felt
-    member calldata: felt*
-end
-
-# Tmp struct introduced while we wait for Cairo
-# to support passing `[AccountCall]` to __execute__
-struct AccountCallArray:
-    member to: felt
-    member selector: felt
-    member data_offset: felt
-    member data_len: felt
+@storage_var
+func Account_plugin_storage(plugin: felt, key: felt) -> (res: felt):
 end
 
 namespace Account:
@@ -62,8 +48,9 @@ namespace Account:
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
-        }(_public_key: felt):
-        Account_public_key.write(_public_key)
+        }(plugin: felt):
+        Account_plugins.write(plugin, 1)
+        Account_default_plugin.write(plugin)
         ERC165.register_interface(IACCOUNT_ID)
         return()
     end
@@ -85,15 +72,6 @@ namespace Account:
     # Getters
     #
 
-    func get_public_key{
-            syscall_ptr : felt*,
-            pedersen_ptr : HashBuiltin*,
-            range_check_ptr
-        }() -> (res: felt):
-        let (res) = Account_public_key.read()
-        return (res=res)
-    end
-
     func get_nonce{
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
@@ -103,43 +81,7 @@ namespace Account:
         return (res=res)
     end
 
-    #
-    # Setters
-    #
-
-    func set_public_key{
-            syscall_ptr : felt*,
-            pedersen_ptr : HashBuiltin*,
-            range_check_ptr
-        }(new_public_key: felt):
-        assert_only_self()
-        Account_public_key.write(new_public_key)
-        return ()
-    end
-
-    func add_plugin{
-            syscall_ptr: felt*,
-            pedersen_ptr: HashBuiltin*,
-            range_check_ptr
-        } (
-            plugin: felt
-        ):
-        # only called via execute
-        assert_only_self()
-
-        # change signer
-        with_attr error_message("plugin cannot be null"):
-            assert_not_zero(plugin)
-        end
-        Account_plugins.write(plugin, 1)
-        return()
-    end
-
-    #
-    # Business logic
-    #
-
-    func is_plugin{
+    func get_plugin{
             syscall_ptr: felt*, 
             pedersen_ptr: HashBuiltin*,
             range_check_ptr
@@ -148,34 +90,59 @@ namespace Account:
         return (success=res)
     end
 
-    func is_valid_signature{
+    func get_plugin_storage{
             syscall_ptr : felt*,
-            pedersen_ptr : HashBuiltin*,
             range_check_ptr,
-            ecdsa_ptr: SignatureBuiltin*
-        }(
-            hash: felt,
-            signature_len: felt,
-            signature: felt*
-        ) -> ():
-        let (_public_key) = Account_public_key.read()
-
-        # This interface expects a signature pointer and length to make
-        # no assumption about signature validation schemes.
-        # But this implementation does, and it expects a (sig_r, sig_s) pair.
-        let sig_r = signature[0]
-        let sig_s = signature[1]
-
-        verify_ecdsa_signature(
-            message=hash,
-            public_key=_public_key,
-            signature_r=sig_r,
-            signature_s=sig_s)
-
-        return ()
+            pedersen_ptr : HashBuiltin*
+        } (
+            plugin: felt,
+            key: felt
+        ) -> (value : felt):
+        let (value) = Account_plugin_storage.read(plugin, key)
+        return (value=value)
     end
 
-    func is_valid_plugin{
+    #
+    # Setters
+    #
+
+    func set_plugin{
+            syscall_ptr: felt*,
+            pedersen_ptr: HashBuiltin*,
+            range_check_ptr
+        } (
+            plugin: felt,
+            value: felt
+        ):
+        # only called via execute
+        assert_only_self()
+
+        # change signer
+        with_attr error_message("plugin cannot be null"):
+            assert_not_zero(plugin)
+        end
+        Account_plugins.write(plugin, value)
+        return()
+    end
+
+    func set_plugin_storage{
+            syscall_ptr : felt*,
+            range_check_ptr,
+            pedersen_ptr : HashBuiltin*
+        } (
+            plugin: felt,
+            key: felt,
+            value: felt
+        ):
+        Account_plugin_storage.write(plugin, key, value)
+        return()
+    end
+
+    #
+    # Business logic
+    #
+
+    func is_valid{
             syscall_ptr: felt*,
             pedersen_ptr: HashBuiltin*,
             ecdsa_ptr: SignatureBuiltin*,
@@ -217,6 +184,11 @@ namespace Account:
         ) -> (response_len: felt, response: felt*):
         alloc_locals
 
+        let (caller) = get_caller_address()
+        with_attr error_message("Account: no reentrant call"):
+            assert caller = 0
+        end
+
         let (__fp__, _) = get_fp_and_pc()
         let (tx_info) = get_tx_info()
         let (_current_nonce) = Account_current_nonce.read()
@@ -233,18 +205,10 @@ namespace Account:
 
         # validate & execute calls
         let (response : felt*) = alloc()
-        local response_len
-        if calls[0].selector - USE_PLUGIN_SELECTOR == 0:
-            # validate with plugin
-            is_valid_plugin(call_array_len, call_array, calldata_len, calldata)
-            let (len) = _execute_list(calls_len - 1, calls + Call.SIZE, response)
-            assert response_len = len
-        else:
-            # validate transaction
-            is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature)
-            let (len) = _execute_list(calls_len, calls, response)
-            assert response_len = len
-        end
+
+        # validate with plugin
+        is_valid(call_array_len, call_array, calldata_len, calldata)
+        let (response_len) = _execute_list(calls_len - 1, calls + Call.SIZE, response)
 
         return (response_len=response_len, response=response)
     end
