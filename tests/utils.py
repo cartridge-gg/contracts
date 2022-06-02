@@ -21,6 +21,7 @@ TRANSACTION_VERSION = 0
 
 _root = Path(__file__).parent.parent
 
+contract_classes = {}
 
 def contract_path(name):
     if name.startswith("tests/"):
@@ -104,7 +105,7 @@ def assert_event_emitted(tx_exec_info, from_address, name, data):
     ) in tx_exec_info.raw_events
 
 
-def get_contract_def(path):
+async def get_contract_def(path):
     """Returns the contract definition from the contract path"""
     path = contract_path(path)
     contract_def = compile_starknet_files(

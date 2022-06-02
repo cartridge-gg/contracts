@@ -7,6 +7,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from openzeppelin.account.library import AccountCallArray
 from src.account.library import Account
 from src.account.plugins.signer.ISigner import ISigner
+from starkware.starknet.common.syscalls import library_call
 
 from openzeppelin.introspection.ERC165 import ERC165
 
@@ -16,10 +17,15 @@ from openzeppelin.introspection.ERC165 import ERC165
 
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    plugin : felt, public_key : felt
+    plugin_hash : felt, initializer_calldata_len : felt, initializer_calldata : felt*
 ):
-    Account.initializer(plugin)
-    ISigner.delegate_initialize(contract_address=plugin, public_key=public_key)
+    library_call(
+        class_hash=plugin_hash,
+        function_selector=215307247182100370520050591091822763712463273430149262739280891880522753123,
+        calldata_size=initializer_calldata_len,
+        calldata=initializer_calldata,
+    )
+    Account.initializer(plugin_hash)
     return ()
 end
 
@@ -30,6 +36,14 @@ end
 @view
 func get_nonce{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (res : felt):
     let (res) = Account.get_nonce()
+    return (res=res)
+end
+
+@view
+func get_plugin{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    plugin : felt
+) -> (res : felt):
+    let (res) = Account.get_plugin(plugin)
     return (res=res)
 end
 

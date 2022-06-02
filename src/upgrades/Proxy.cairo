@@ -4,7 +4,7 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import delegate_l1_handler, delegate_call
+from starkware.starknet.common.syscalls import library_call_l1_handler, library_call
 
 from src.upgrades.library import Proxy
 
@@ -43,7 +43,7 @@ func __default__{
     ):
     let (address) = Proxy.get_implementation()
 
-    let (retdata_size: felt, retdata: felt*) = delegate_call(
+    let (retdata_size: felt, retdata: felt*) = library_call(
         contract_address=address,
         function_selector=selector,
         calldata_size=calldata_size,
@@ -66,7 +66,7 @@ func __l1_default__{
     ):
     let (address) = Proxy.get_implementation()
 
-    delegate_l1_handler(
+    library_call_l1_handler(
         contract_address=address,
         function_selector=selector,
         calldata_size=calldata_size,

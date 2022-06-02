@@ -1,7 +1,7 @@
 import pytest
 from starkware.starknet.testing.starknet import Starknet
 from utils import (
-    TestSigner, assert_revert, assert_event_emitted, get_contract_def, cached_contract
+    TestSigner, assert_revert, assert_event_emitted, get_contract_class, cached_contract
 )
 
 
@@ -14,10 +14,10 @@ signer = TestSigner(123456789987654321)
 
 @pytest.fixture(scope='module')
 def contract_defs():
-    account_def = get_contract_def('src/account/Account.cairo')
-    v1_def = get_contract_def('tests/mocks/upgrades_v1_mock.cairo')
-    v2_def = get_contract_def('tests/mocks/upgrades_v2_mock.cairo')
-    proxy_def = get_contract_def('src/upgrades/Proxy.cairo')
+    account_def = get_contract_class('src/account/Account.cairo')
+    v1_def = get_contract_class('tests/mocks/upgrades_v1_mock.cairo')
+    v2_def = get_contract_class('tests/mocks/upgrades_v2_mock.cairo')
+    proxy_def = get_contract_class('src/upgrades/Proxy.cairo')
 
     return account_def, v1_def, v2_def, proxy_def
 

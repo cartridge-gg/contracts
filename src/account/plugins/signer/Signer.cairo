@@ -5,9 +5,9 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.starknet.common.syscalls import get_tx_info
 
+from openzeppelin.security.initializable import Initializable
 from openzeppelin.account.library import AccountCallArray
 from src.account.plugins.signer.library import Signer
-from openzeppelin.security.initializable import Initializable
 
 @external
 func initialize{
@@ -15,7 +15,7 @@ func initialize{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(public_key: felt):
-    Initializable.initialize()
+    Initializable.initialized()
     Signer.initializer(public_key)
     return ()
 end
