@@ -7,11 +7,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.memcpy import memcpy
-from starkware.starknet.common.syscalls import (
-    call_contract,
-    get_caller_address,
-    get_tx_info,
-)
+from starkware.starknet.common.syscalls import call_contract, library_call, get_caller_address, get_tx_info
 
 from openzeppelin.introspection.ERC165 import ERC165
 
@@ -19,6 +15,9 @@ from openzeppelin.utils.constants import IACCOUNT_ID
 
 from src.account.IPlugin import IPlugin
 from openzeppelin.account.library import Call, AccountCallArray
+
+const USE_PLUGIN_SELECTOR = 1121675007639292412441492001821602921366030142137563176027248191276862353634
+const EXEC_PLUGIN_SELECTOR = 150609458190501232454308108144391378345386491640300306141243629042190387174
 
 #
 # Storage
@@ -85,6 +84,12 @@ namespace Account:
         return (res=res)
     end
 
+    func get_default_plugin{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        ) -> (res : felt):
+        let (res) = Account_default_plugin.read()
+        return (res=res)
+    end
+
     func get_plugin_storage{syscall_ptr : felt*, range_check_ptr, pedersen_ptr : HashBuiltin*}(
         plugin : felt, key : felt
     ) -> (value : felt):
@@ -126,24 +131,56 @@ namespace Account:
         pedersen_ptr : HashBuiltin*,
         ecdsa_ptr : SignatureBuiltin*,
         range_check_ptr,
-    }(call_array_len : felt, call_array : AccountCallArray*, calldata_len : felt, calldata : felt*):
+    }(
+        plugin : felt,
+        plugin_data_len : felt,
+        plugin_data : felt*,
+        call_array_len : felt,
+        call_array : AccountCallArray*,
+        calldata_len : felt,
+        calldata : felt*,
+    ):
         alloc_locals
 
-        let plugin = calldata[call_array[0].data_offset]
         let (is_plugin) = Account_plugins.read(plugin)
         assert_not_zero(is_plugin)
 
         IPlugin.library_call_validate(
             class_hash=plugin,
-            plugin_data_len=call_array[0].data_len - 1,
-            plugin_data=calldata + call_array[0].data_offset + 1,
-            call_array_len=call_array_len - 1,
-            call_array=call_array + AccountCallArray.SIZE,
-            calldata_len=calldata_len - call_array[0].data_len,
-            calldata=calldata + call_array[0].data_offset + call_array[0].data_len,
+            plugin_data_len=plugin_data_len,
+            plugin_data=plugin_data,
+            call_array_len=call_array_len,
+            call_array=call_array,
+            calldata_len=calldata_len,
+            calldata=calldata,
         )
 
         return ()
+    end
+
+    func execute_library{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*,
+    }(
+        call_array_len : felt,
+        call_array : AccountCallArray*,
+        calldata_len : felt,
+        calldata : felt*,
+    ) -> (response_len : felt, response : felt*):
+        alloc_locals
+
+        assert_only_self()
+
+        let (calls : Call*) = alloc()
+        _from_call_array_to_call(call_array_len, call_array, calldata, calls)
+        let calls_len = call_array_len
+
+        # validate & execute calls
+        let (response : felt*) = alloc()
+        let (response_len) = _library_execute_list(calls_len, calls, response)
+        return (response_len=response_len, response=response)
     end
 
     func execute{
@@ -181,11 +218,80 @@ namespace Account:
 
         # validate & execute calls
         let (response : felt*) = alloc()
+        local response_len
 
-        # validate with plugin
-        is_valid(call_array_len, call_array, calldata_len, calldata)
+        if calls[0].selector - USE_PLUGIN_SELECTOR == 0:
+            # validate with plugin
+            let plugin = calldata[call_array[0].data_offset]
 
-        let (response_len) = _execute_list(calls_len - 1, calls + Call.SIZE, response)
+            is_valid(
+                plugin=plugin,
+                plugin_data_len=call_array[0].data_len - 1,
+                plugin_data=calldata + call_array[0].data_offset + 1,
+                call_array_len=call_array_len - 1,
+                call_array=call_array + AccountCallArray.SIZE,
+                calldata_len=calldata_len - call_array[0].data_len,
+                calldata=calldata + call_array[0].data_offset + call_array[0].data_len,
+            )
+
+            let (res) = _execute_list(calls_len - 1, calls + Call.SIZE, response)
+            assert response_len = res
+
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+            tempvar ecdsa_ptr = ecdsa_ptr
+            tempvar syscall_ptr = syscall_ptr
+        else:
+            if calls[0].selector - EXEC_PLUGIN_SELECTOR == 0:
+                # validate with plugin
+                let plugin = calldata[call_array[0].data_offset]
+
+                is_valid(
+                    plugin=plugin,
+                    plugin_data_len=call_array[0].data_len - 1,
+                    plugin_data=calldata + call_array[0].data_offset + 1,
+                    call_array_len=call_array_len - 1,
+                    call_array=call_array + AccountCallArray.SIZE,
+                    calldata_len=calldata_len - call_array[0].data_len,
+                    calldata=calldata + call_array[0].data_offset + call_array[0].data_len,
+                )
+
+                let (res) = _library_execute_list(calls_len - 1, calls + Call.SIZE, response)
+                assert response_len = res
+
+                tempvar pedersen_ptr = pedersen_ptr
+                tempvar range_check_ptr = range_check_ptr
+                tempvar ecdsa_ptr = ecdsa_ptr
+                tempvar syscall_ptr = syscall_ptr
+            else:
+                let (plugin) = get_default_plugin()
+                let (plugin_data : felt*) = alloc()
+
+                is_valid(
+                    plugin=plugin,
+                    plugin_data_len=0,
+                    plugin_data=plugin_data,
+                    call_array_len=call_array_len,
+                    call_array=call_array,
+                    calldata_len=calldata_len,
+                    calldata=calldata,
+                )
+
+                let (res) = _execute_list(calls_len, calls, response)
+                assert response_len = res
+
+                tempvar pedersen_ptr = pedersen_ptr
+                tempvar range_check_ptr = range_check_ptr
+                tempvar ecdsa_ptr = ecdsa_ptr
+                tempvar syscall_ptr = syscall_ptr
+            end
+
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+            tempvar ecdsa_ptr = ecdsa_ptr
+            tempvar syscall_ptr = syscall_ptr
+        end
+
         return (response_len=response_len, response=response)
     end
 
@@ -203,6 +309,33 @@ namespace Account:
         let this_call : Call = [calls]
         let res = call_contract(
             contract_address=this_call.to,
+            function_selector=this_call.selector,
+            calldata_size=this_call.calldata_len,
+            calldata=this_call.calldata,
+        )
+        # copy the result in response
+        memcpy(response, res.retdata, res.retdata_size)
+        # do the next calls recursively
+        let (response_len) = _execute_list(
+            calls_len - 1, calls + Call.SIZE, response + res.retdata_size
+        )
+        return (response_len + res.retdata_size)
+    end
+
+    func _library_execute_list{syscall_ptr : felt*}(calls_len : felt, calls : Call*, response : felt*) -> (
+        response_len : felt
+    ):
+        alloc_locals
+
+        # if no more calls
+        if calls_len == 0:
+            return (0)
+        end
+
+        # do the current call
+        let this_call : Call = [calls]
+        let res = library_call(
+            class_hash=this_call.to,
             function_selector=this_call.selector,
             calldata_size=this_call.calldata_len,
             calldata=this_call.calldata,

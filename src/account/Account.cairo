@@ -11,6 +11,8 @@ from starkware.starknet.common.syscalls import library_call
 
 from openzeppelin.introspection.ERC165 import ERC165
 
+const INITIALIZE_SELECTOR = 215307247182100370520050591091822763712463273430149262739280891880522753123
+
 #
 # Constructor
 #
@@ -21,7 +23,7 @@ func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
 ):
     library_call(
         class_hash=plugin_hash,
-        function_selector=215307247182100370520050591091822763712463273430149262739280891880522753123,
+        function_selector=INITIALIZE_SELECTOR,
         calldata_size=initializer_calldata_len,
         calldata=initializer_calldata,
     )

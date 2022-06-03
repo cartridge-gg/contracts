@@ -1,15 +1,15 @@
 import pytest
+from starkware.starkware_utils.error_handling import StarkException
+from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starknet.core.os.contract_address.contract_address import calculate_contract_address, calculate_contract_address_from_hash
 from utils import TestSigner, assert_revert, cached_contract, get_contract_def, TRUE
 
-
 signer = TestSigner(123456789987654321)
 other = TestSigner(987654321123456789)
 
 IACCOUNT_ID = 0xf10dbd44
-
 
 @pytest.fixture(scope='module')
 async def contract_defs():
@@ -33,14 +33,14 @@ async def account_init(contract_defs):
     account1 = await starknet.deploy(
         contract_class=account_def,
         constructor_calldata=[
-            signer_class.class_hash, 1, signer.public_key],
+            signer1, 1, signer.public_key],
         contract_address_salt=420
     )
 
     account2 = await starknet.deploy(
         contract_class=account_def,
         constructor_calldata=[
-            signer_class.class_hash, 1, signer.public_key]
+            signer1, 1, signer.public_key]
     )
     initializable1 = await starknet.deploy(
         contract_class=init_def,
@@ -73,80 +73,90 @@ def account_factory(contract_defs, account_init):
     return signer1, account1, account2, initializable1, initializable2, attacker
 
 
-@pytest.mark.asyncio
-async def test_constructor(account_factory):
-    signer1, account, *_ = account_factory
+# @pytest.mark.asyncio
+# async def test_constructor(account_factory):
+#     signer1, account, *_ = account_factory
 
-    execution_info = await account.get_plugin(signer1).call()
-    assert execution_info.result == (1,)
+#     execution_info = await account.get_plugin(signer1).call()
+#     assert execution_info.result == (1,)
 
-    execution_info = await signer.send_transactions(
-        account, [
-            (account.contract_address, '', [signer1]),
-            (account.contract_address, 'get_plugin', [signer1]),
-            # (account.contract_address, 'get_public_key', [])
-        ]
-    )
+#     execution_info = await signer.send_transactions(
+#         account, [
+#             (account.contract_address, 'use_plugin', [signer1]),
+#             (account.contract_address, 'get_plugin', [signer1]),
+#             # (account.contract_address, 'get_public_key', [])
+#         ]
+#     )
 
-    assert execution_info.result[0][0] == 1
+#     assert execution_info.result[0][0] == 1
 
-    execution_info = await account.supportsInterface(IACCOUNT_ID).call()
-    assert execution_info.result == (TRUE,)
-
-
-@pytest.mark.asyncio
-async def test_execute(account_factory):
-    signer1, account, _, initializable, *_ = account_factory
-
-    execution_info = await initializable.initialized().call()
-    assert execution_info.result == (0,)
-
-    await signer.send_transactions(account, [
-        (account.contract_address, '', [signer1]),
-        (initializable.contract_address, 'initialize', [])
-    ])
-
-    execution_info = await initializable.initialized().call()
-    assert execution_info.result == (1,)
+#     execution_info = await account.supportsInterface(IACCOUNT_ID).call()
+#     assert execution_info.result == (TRUE,)
 
 
-@pytest.mark.asyncio
-async def test_multicall(account_factory):
-    signer1, account, _, initializable_1, initializable_2, _ = account_factory
+# @pytest.mark.asyncio
+# async def test_execute(account_factory):
+#     signer1, account, _, initializable_1, initializable_2, *_ = account_factory
 
-    execution_info = await initializable_1.initialized().call()
-    assert execution_info.result == (0,)
-    execution_info = await initializable_2.initialized().call()
-    assert execution_info.result == (0,)
+#     execution_info = await initializable_1.initialized().call()
+#     assert execution_info.result == (0,)
 
-    await signer.send_transactions(
-        account,
-        [
-            (account.contract_address, '', [signer1]),
-            (initializable_1.contract_address, 'initialize', []),
-            (initializable_2.contract_address, 'initialize', [])
-        ]
-    )
+#     await signer.send_transactions(account, [
+#         (initializable_1.contract_address, 'initialize', [])
+#     ])
 
-    execution_info = await initializable_1.initialized().call()
-    assert execution_info.result == (1,)
-    execution_info = await initializable_2.initialized().call()
-    assert execution_info.result == (1,)
+#     execution_info = await initializable_1.initialized().call()
+#     assert execution_info.result == (1,)
+
+#     execution_info = await initializable_2.initialized().call()
+#     assert execution_info.result == (0,)
+
+#     await signer.send_transactions(account, [
+#         (account.contract_address, 'use_plugin', [signer1]),
+#         (initializable_2.contract_address, 'initialize', [])
+#     ])
+
+#     execution_info = await initializable_2.initialized().call()
+#     assert execution_info.result == (1,)
 
 
-@pytest.mark.asyncio
-async def test_return_value(account_factory):
-    signer1, account, _, initializable, *_ = account_factory
+# @pytest.mark.asyncio
+# async def test_multicall(account_factory):
+#     signer1, account, _, initializable_1, initializable_2, _ = account_factory
 
-    # initialize, set `initialized = 1`
-    await signer.send_transactions(account, [(account.contract_address, '', [signer1]),
-                                             (initializable.contract_address, 'initialize', [])])
+#     execution_info = await initializable_1.initialized().call()
+#     assert execution_info.result == (0,)
+#     execution_info = await initializable_2.initialized().call()
+#     assert execution_info.result == (0,)
 
-    read_info = await signer.send_transactions(account, [(account.contract_address, '', [signer1]),
-                                                         (initializable.contract_address, 'initialized', [])])
-    call_info = await initializable.initialized().call()
-    (call_result, ) = call_info.result
-    assert read_info.result.response == [call_result]  # 1
+#     await signer.send_transactions(
+#         account,
+#         [
+#             (account.contract_address, 'use_plugin', [signer1]),
+#             (initializable_1.contract_address, 'initialize', []),
+#             (initializable_2.contract_address, 'initialize', [])
+#         ]
+#     )
+
+#     execution_info = await initializable_1.initialized().call()
+#     assert execution_info.result == (1,)
+#     execution_info = await initializable_2.initialized().call()
+#     assert execution_info.result == (1,)
+
+
+# @pytest.mark.asyncio
+# async def test_return_value(account_factory):
+#     signer1, account, _, initializable, *_ = account_factory
+
+#     # initialize, set `initialized = 1`
+#     await signer.send_transactions(account, [(account.contract_address, 'use_plugin', [signer1]),
+#                                              (initializable.contract_address, 'initialize', [])])
+
+#     read_info = await signer.send_transactions(account, [(account.contract_address, 'use_plugin', [signer1]),
+#                                                          (initializable.contract_address, 'initialized', [])])
+#     call_info = await initializable.initialized().call()
+#     (call_result, ) = call_info.result
+#     assert read_info.result.response == [call_result]  # 1
 
 
 # @pytest.mark.asyncio
@@ -178,23 +188,33 @@ async def test_return_value(account_factory):
 #     assert execution_info.result == (1,)
 
 
-# @pytest.mark.asyncio
-# async def test_public_key_setter(account_factory):
-#     account, *_ = account_factory
+@pytest.mark.asyncio
+async def test_public_key_setter(account_factory):
+    signer1, account, *_ = account_factory
 
-#     execution_info = await account.get_public_key().call()
-#     assert execution_info.result == (signer.public_key,)
+    execution_info = await signer.send_transactions(account, [
+        (account.contract_address, 'exec_plugin', [signer1]),
+        (signer1, 'get_public_key', [])
+    ])
+    assert execution_info.result[0][0] == signer.public_key
 
-#     # set new pubkey
-#     await signer.send_transactions(account, [(account.contract_address, 'set_public_key', [other.public_key])])
+    print(signer1, account.contract_address)
 
-#     execution_info = await account.get_public_key().call()
-#     assert execution_info.result == (other.public_key,)
+    # set new pubkey
+    await signer.send_transactions(account, [
+        (account.contract_address, 'exec_plugin', [signer1]),
+        (signer1, 'set_public_key', [other.public_key])
+    ])
+
+    execution_info = await signer.send_transactions(account, [
+        (account.contract_address, 'exec_plugin', [signer1]),
+        (signer1, 'get_public_key', [])])
+    assert execution_info.result == (other.public_key,)
 
 
 # @pytest.mark.asyncio
 # async def test_public_key_setter_different_account(account_factory):
-#     account, bad_account, *_ = account_factory
+#     _, account, bad_account, *_ = account_factory
 
 #     # set new pubkey
 #     await assert_revert(
@@ -208,12 +228,13 @@ async def test_return_value(account_factory):
 
 # @pytest.mark.asyncio
 # async def test_account_takeover_with_reentrant_call(account_factory):
-#     account, _, _, _, attacker = account_factory
+#     _, account, _, _, _, attacker = account_factory
 
 #     await assert_revert(
-#         signer.send_transaction(account, attacker.contract_address, 'account_takeover', []),
+#         signer.send_transaction(
+#             account, attacker.contract_address, 'account_takeover', []),
 #         reverted_with="Account: no reentrant call"
 #     )
 
-#     execution_info = await account.get_public_key().call()
-#     assert execution_info.result == (signer.public_key,)
+    # execution_info = await account.get_public_key().call()
+    # assert execution_info.result == (signer.public_key,)
