@@ -193,7 +193,7 @@ async def test_public_key_setter(account_factory):
     signer1, account, *_ = account_factory
 
     execution_info = await signer.send_transactions(account, [
-        (account.contract_address, 'exec_plugin', [signer1]),
+        (account.contract_address, 'use_plugin', [signer1]),
         (signer1, 'get_public_key', [])
     ])
     assert execution_info.result[0][0] == signer.public_key
@@ -201,15 +201,16 @@ async def test_public_key_setter(account_factory):
     print(signer1, account.contract_address)
 
     # set new pubkey
-    await signer.send_transactions(account, [
-        (account.contract_address, 'exec_plugin', [signer1]),
-        (signer1, 'set_public_key', [other.public_key])
-    ])
+    # await signer.send_transactions(account, [
+    #     (account.contract_address, 'use_plugin', [signer1]),
+    #     (signer1, 'execute_library', (signer1, 'set_public_key', [other.public_key]))
+    # ])
 
-    execution_info = await signer.send_transactions(account, [
-        (account.contract_address, 'exec_plugin', [signer1]),
-        (signer1, 'get_public_key', [])])
-    assert execution_info.result == (other.public_key,)
+    # execution_info = await signer.send_transactions(account, [
+    #     (account.contract_address, 'use_plugin', [signer1]),
+    #     (account.contract_address, 'exec_plugin', [signer1]),
+    #     (signer1, 'get_public_key', [])])
+    # assert execution_info.result == (other.public_key,)
 
 
 # @pytest.mark.asyncio

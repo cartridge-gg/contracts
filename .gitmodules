@@ -4,3 +4,7 @@
 [submodule "cairo_base64"]
 	url = https://github.com/dhruvkelawala/cairo-base64
 	path = lib/cairo_base64
+[submodule "argent_contracts_starknet"]
+	url = https://github.com/argentlabs/argent-contracts-starknet
+	path = lib/argent_contracts_starknet
+	branch = explore/plugins
