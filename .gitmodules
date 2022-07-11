@@ -1,10 +1,14 @@
-[submodule "cairo_contracts"]
-	url = https://github.com/OpenZeppelin/cairo-contracts
-	path = lib/cairo_contracts
 [submodule "cairo_base64"]
 	url = https://github.com/dhruvkelawala/cairo-base64
 	path = lib/cairo_base64
+[submodule "common_ec_cairo"]
+	url = https://github.com/EulerSmile/common-ec-cairo
+	path = lib/common_ec_cairo
+[submodule "cairo_contracts"]
+	url = https://github.com/OpenZeppelin/cairo-contracts
+	path = lib/cairo_contracts
+	branch = refs/heads/0.1.0
 [submodule "argent_contracts_starknet"]
 	url = https://github.com/argentlabs/argent-contracts-starknet
 	path = lib/argent_contracts_starknet
-	branch = explore/plugins
+	branch = refs/heads/v0.2.1
