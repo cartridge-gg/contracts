@@ -13,7 +13,7 @@ from starkware.starknet.common.syscalls import (
 )
 from starkware.cairo.common.bool import (TRUE, FALSE)
 
-from contracts.Upgradable import _set_implementation
+from src.Upgradable import _set_implementation
 
 @contract_interface
 namespace IPlugin:
@@ -39,8 +39,6 @@ const SUPPORTS_INTERFACE_SELECTOR = 11840158947602944946736134389133614353367221
 const USE_PLUGIN_SELECTOR = 1121675007639292412441492001821602921366030142137563176027248191276862353634
 
 const ERC165_ACCOUNT_INTERFACE = 0xf10dbd44
-
-const DEFAULT_PLUGIN = 0x00
 
 ####################
 # STRUCTS
@@ -90,6 +88,31 @@ end
 func _plugins(plugin: felt) -> (res: felt):
 end
 
+@storage_var
+func _default_plugin() -> (res: felt):
+end
+
+####################
+# CONSTRUCTOR
+####################
+
+@constructor
+func constructor{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(plugin: felt):
+    # add plugin
+    with_attr error_message("plugin cannot be null"):
+        assert_not_zero(plugin)
+    end
+    _plugins.write(plugin, 1)
+
+    _default_plugin.write(plugin)
+    
+    return ()
+end
+
 ####################
 # EXTERNAL FUNCTIONS
 ####################
@@ -125,8 +148,9 @@ func __execute__{
         let (response_len, response) = execute_with_plugin(plugin_id, plugin_data_len, plugin_data, call_array_len - 1, call_array + CallArray.SIZE, calldata_len, calldata)
         return (retdata_size=response_len, retdata=response)
     else:
-        validate_with_plugin(DEFAULT_PLUGIN, 0, plugin_data, call_array_len, call_array, calldata_len, calldata)
-        let (response_len, response) = execute_with_plugin(DEFAULT_PLUGIN, 0, plugin_data, call_array_len, call_array, calldata_len, calldata)
+        let (default_plugin) = _default_plugin.read()
+        validate_with_plugin(default_plugin, 0, plugin_data, call_array_len, call_array, calldata_len, calldata)
+        let (response_len, response) = execute_with_plugin(default_plugin, 0, plugin_data, call_array_len, call_array, calldata_len, calldata)
         return (retdata_size=response_len, retdata=response)
     end
 end
@@ -349,7 +373,8 @@ func get_current_plugin{
     } () -> (current_plugin: felt):
     let (current_plugin) = _current_plugin.read()
     if current_plugin == 0:
-        return (DEFAULT_PLUGIN)
+        let (default_plugin) = _default_plugin.read()
+        return (default_plugin)
     end
     return (current_plugin)
 end

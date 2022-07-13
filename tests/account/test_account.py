@@ -4,7 +4,7 @@ from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starknet.core.os.contract_address.contract_address import calculate_contract_address, calculate_contract_address_from_hash
-from utils import TestSigner, assert_revert, cached_contract, get_contract_def, TRUE
+from gutils import TestSigner, assert_revert, cached_contract, get_contract_def, TRUE
 
 signer = TestSigner(123456789987654321)
 other = TestSigner(987654321123456789)

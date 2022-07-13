@@ -1,7 +1,7 @@
+import logging
 import pytest
 import pytest_asyncio
 import asyncio
-import logging
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starknet.business_logic.state.state import BlockInfo
 from starkware.cairo.common.hash_state import compute_hash_on_elements
@@ -44,17 +44,10 @@ def update_starknet_block(starknet, block_number=1, block_timestamp=DEFAULT_TIME
 def reset_starknet_block(starknet):
     update_starknet_block(starknet=starknet)
 
-
-@pytest_asyncio.fixture
-async def account_factory(get_starknet):
-    starknet = get_starknet
-    account = await deploy(starknet, "src/account/PluginAccount.cairo")
-    return account
-
-
 @pytest_asyncio.fixture
 async def dapp_factory(get_starknet):
     starknet = get_starknet
+
     dapp = await deploy(starknet, "lib/argent_contracts_starknet/contracts/test/TestDapp.cairo")
     return dapp
 
@@ -62,8 +55,16 @@ async def dapp_factory(get_starknet):
 @pytest_asyncio.fixture
 async def plugin_factory(get_starknet):
     starknet = get_starknet
-    plugin_session = await deploy(starknet, "account/plugins/Signer.cairo")
+    plugin_session = await deploy(starknet, "src/account/plugins/signer/WebAuthnSigner.cairo")
     return plugin_session
+
+@pytest_asyncio.fixture
+async def account_factory(plugin_factory, get_starknet):
+    starknet = get_starknet
+    plugin = plugin_factory
+
+    account = await deploy(starknet, "src/account/PluginAccount.cairo", [plugin.contract_address])
+    return account, plugin
 
 # sig: 304502205ee29a838807a20b214fe64269e3fd3d0b4e36c92b4d708308bbdf312fd28b5c022100962a0eff275f733d626540a1200c8f7b2724bf39b2fdd20e865da3711ef3fdc6
 # x: "mD9+rmM6b2YHnxAGQLNUoKq3JOCz5ocqhONLLbMgfg8="
@@ -72,11 +73,12 @@ async def plugin_factory(get_starknet):
 
 @pytest.mark.asyncio
 async def test_add_plugin(account_factory, plugin_factory):
-    account = account_factory
-    plugin = plugin_factory
+    account, basePlugin = account_factory
     sender = TransactionSender(account)
 
-    assert (await account.is_plugin(plugin.contract_address).call()).result.success == (0)
+    assert (await account.is_plugin(basePlugin.contract_address).call()).result.success == (1)
+    
+    plugin = plugin_factory
     tx_exec_info = await sender.send_transaction([(account.contract_address, 'add_plugin', [plugin.contract_address])], [signer])
     assert (await account.is_plugin(plugin.contract_address).call()).result.success == (1)
 
