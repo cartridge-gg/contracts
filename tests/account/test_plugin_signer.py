@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 import asyncio
 import logging
 from starkware.starknet.testing.starknet import Starknet
@@ -24,42 +25,50 @@ VERSION = str_to_felt('0.2.2')
 IACCOUNT_ID = 0xf10dbd44
 
 
-@pytest.fixture(scope='module')
+@pytest_asyncio.fixture(scope='module')
 def event_loop():
     return asyncio.new_event_loop()
 
-@pytest.fixture(scope='module')
+
+@pytest_asyncio.fixture(scope='module')
 async def get_starknet():
     starknet = await Starknet.empty()
     return starknet
 
+
 def update_starknet_block(starknet, block_number=1, block_timestamp=DEFAULT_TIMESTAMP):
-    starknet.state.state.block_info = BlockInfo(block_number=block_number, block_timestamp=block_timestamp, gas_price=0)
+    starknet.state.state.block_info = BlockInfo(
+        block_number=block_number, block_timestamp=block_timestamp, gas_price=0)
+
 
 def reset_starknet_block(starknet):
     update_starknet_block(starknet=starknet)
 
-@pytest.fixture
+
+@pytest_asyncio.fixture
 async def account_factory(get_starknet):
     starknet = get_starknet
-    account = await deploy(starknet, "lib/argent_contracts_starknet/contracts/Argent2Account.cairo")
+    account = await deploy(starknet, "src/account/PluginAccount.cairo")
     return account
 
-@pytest.fixture
+
+@pytest_asyncio.fixture
 async def dapp_factory(get_starknet):
     starknet = get_starknet
     dapp = await deploy(starknet, "lib/argent_contracts_starknet/contracts/test/TestDapp.cairo")
     return dapp
 
-@pytest.fixture
+
+@pytest_asyncio.fixture
 async def plugin_factory(get_starknet):
     starknet = get_starknet
-    plugin_session = await deploy(starknet, "lib/argent_contracts_starknet/contracts/plugins/SessionKey.cairo")
+    plugin_session = await deploy(starknet, "account/plugins/Signer.cairo")
     return plugin_session
 
 # sig: 304502205ee29a838807a20b214fe64269e3fd3d0b4e36c92b4d708308bbdf312fd28b5c022100962a0eff275f733d626540a1200c8f7b2724bf39b2fdd20e865da3711ef3fdc6
 # x: "mD9+rmM6b2YHnxAGQLNUoKq3JOCz5ocqhONLLbMgfg8="
 # y: "lqYQ6vTKMOU3oovdN5r0dosIRWRdC8ocns8U9yeBYn0="
+
 
 @pytest.mark.asyncio
 async def test_add_plugin(account_factory, plugin_factory):
@@ -88,7 +97,7 @@ async def test_add_plugin(account_factory, plugin_factory):
 #         [
 #             (account.contract_address, 'use_plugin', [plugin.contract_address, session_key.public_key, DEFAULT_TIMESTAMP + 10, session_token[0], session_token[1]]),
 #             (dapp.contract_address, 'set_number', [47])
-#         ], 
+#         ],
 #         [session_key])
 
 #     assert_event_emmited(
@@ -98,6 +107,7 @@ async def test_add_plugin(account_factory, plugin_factory):
 #     )
 
 #     assert (await dapp.get_number(account.contract_address).call()).result.number == 47
+
 
 def get_session_token(key, expires):
     session = [

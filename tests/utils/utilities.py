@@ -7,8 +7,7 @@ from starkware.starknet.business_logic.execution.objects import Event
 from starkware.starknet.compiler.compile import get_selector_from_name
 
 CAIRO_PATH = [
-    "lib/argent_contracts_starknet",
-    "lib/argent_contracts_starknet/contracts/plugins"]
+    "lib/argent_contracts_starknet"]
 
 
 def str_to_felt(text):
