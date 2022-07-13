@@ -1,7 +1,7 @@
 import pytest
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
-from starkware.starknet.testing.contract import StarknetContract
+from starkware.starknet.testing.contract import StarknetContract, DeclaredClass
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starknet.core.os.contract_address.contract_address import calculate_contract_address, calculate_contract_address_from_hash
 from gutils import TestSigner, assert_revert, cached_contract, get_contract_def, TRUE

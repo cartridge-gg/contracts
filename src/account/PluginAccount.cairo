@@ -38,6 +38,8 @@ const VERSION = '0.2.3'
 const SUPPORTS_INTERFACE_SELECTOR = 1184015894760294494673613438913361435336722154500302038630992932234692784845
 const USE_PLUGIN_SELECTOR = 1121675007639292412441492001821602921366030142137563176027248191276862353634
 
+const INITIALIZE_SELECTOR = 215307247182100370520050591091822763712463273430149262739280891880522753123
+
 const ERC165_ACCOUNT_INTERFACE = 0xf10dbd44
 
 ####################
@@ -105,15 +107,21 @@ func constructor{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(plugin: felt):
+    }(plugin: felt, plugin_calldata_len: felt, plugin_calldata: felt*):
     # add plugin
     with_attr error_message("plugin cannot be null"):
         assert_not_zero(plugin)
     end
     _plugins.write(plugin, 1)
 
+    library_call(
+        class_hash=plugin,
+        function_selector=INITIALIZE_SELECTOR,
+        calldata_size=plugin_calldata_len,
+        calldata=plugin_calldata)
+
     _default_plugin.write(plugin)
-    
+
     return ()
 end
 
@@ -189,7 +197,9 @@ func add_plugin{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     } (
-        plugin: felt
+        plugin: felt, 
+        plugin_calldata_len: felt,
+        plugin_calldata: felt*
     ):
     # only called via execute
     assert_only_self()
@@ -199,6 +209,13 @@ func add_plugin{
         assert_not_zero(plugin)
     end
     _plugins.write(plugin, 1)
+
+    library_call(
+        class_hash=plugin,
+        function_selector=INITIALIZE_SELECTOR,
+        calldata_size=plugin_calldata_len,
+        calldata=plugin_calldata)
+
     return()
 end
 
