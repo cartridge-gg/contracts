@@ -1,6 +1,6 @@
 import pytest
 from starkware.starknet.testing.starknet import Starknet
-from utils import (
+from gutils import (
     TestSigner, assert_revert, assert_event_emitted, get_contract_class, cached_contract
 )
 

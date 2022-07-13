@@ -6,15 +6,27 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.starknet.common.syscalls import get_tx_info
 
 from openzeppelin.security.initializable import Initializable
-from openzeppelin.account.library import AccountCallArray
 from src.account.plugins.signer.library import Signer
+
+struct BigInt3:
+    member d0 : felt
+    member d1 : felt
+    member d2 : felt
+end
+
+struct CallArray:
+    member to: felt
+    member selector: felt
+    member data_offset: felt
+    member data_len: felt
+end
 
 @external
 func initialize{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(public_key: felt):
+    }(x: BigInt3, y: BigInt3, public_key: felt):
     Initializable.initialized()
     Signer.initializer(public_key)
     return ()
@@ -77,7 +89,7 @@ func validate{
     plugin_data_len: felt,
     plugin_data: felt*,
     call_array_len: felt,
-    call_array: AccountCallArray*,
+    call_array: CallArray*,
     calldata_len: felt,
     calldata: felt*
     ):

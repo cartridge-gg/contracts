@@ -20,9 +20,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     software-properties-common && \
    rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install cairo-nile
-COPY cairo-lang-0.9.0.zip cairo-lang-0.9.0.zip
-RUN pip3 install cairo-lang-0.9.0.zip
+RUN pip3 install cairo-nile cairo-lang==0.9.0
 
 USER vscode
 RUN curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash
