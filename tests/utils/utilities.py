@@ -58,9 +58,9 @@ async def deploy(starknet, path, params=None):
         contract_class = compile_starknet_files(
             [path], debug_info=True, cairo_path=CAIRO_PATH,)
         contract_classes[path] = contract_class
-        await starknet.declare(contract_class=contract_class)
+        class_hash = await starknet.declare(contract_class=contract_class)
     deployed_contract = await starknet.deploy(contract_class=contract_class, constructor_calldata=params)
-    return deployed_contract
+    return deployed_contract, class_hash
 
 
 async def declare(starknet, path):

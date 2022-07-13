@@ -55,16 +55,16 @@ async def dapp_factory(get_starknet):
 @pytest_asyncio.fixture
 async def plugin_factory(get_starknet):
     starknet = get_starknet
-    plugin_session = await deploy(starknet, "src/account/plugins/signer/WebAuthnSigner.cairo")
-    return plugin_session
+    plugin_session, plugin_class = await deploy(starknet, "src/account/plugins/signer/WebAuthnSigner.cairo")
+    return plugin_session, plugin_class
 
 @pytest_asyncio.fixture
 async def account_factory(plugin_factory, get_starknet):
     starknet = get_starknet
-    plugin = plugin_factory
+    plugin, plugin_class = plugin_factory
 
-    account = await deploy(starknet, "src/account/PluginAccount.cairo", [plugin.contract_address])
-    return account, plugin
+    account, account_class = await deploy(starknet, "src/account/PluginAccount.cairo", [plugin_class.class_hash])
+    return account, account_class, plugin, plugin_class
 
 # sig: 304502205ee29a838807a20b214fe64269e3fd3d0b4e36c92b4d708308bbdf312fd28b5c022100962a0eff275f733d626540a1200c8f7b2724bf39b2fdd20e865da3711ef3fdc6
 # x: "mD9+rmM6b2YHnxAGQLNUoKq3JOCz5ocqhONLLbMgfg8="
@@ -73,14 +73,14 @@ async def account_factory(plugin_factory, get_starknet):
 
 @pytest.mark.asyncio
 async def test_add_plugin(account_factory, plugin_factory):
-    account, basePlugin = account_factory
+    account, account_class, base_plugin, base_plugin_class = account_factory
     sender = TransactionSender(account)
 
-    assert (await account.is_plugin(basePlugin.contract_address).call()).result.success == (1)
+    assert (await account.is_plugin(base_plugin_class.class_hash).call()).result.success == (1)
     
-    plugin = plugin_factory
-    tx_exec_info = await sender.send_transaction([(account.contract_address, 'add_plugin', [plugin.contract_address])], [signer])
-    assert (await account.is_plugin(plugin.contract_address).call()).result.success == (1)
+    plugin, plugin_class = plugin_factory
+    tx_exec_info = await sender.send_transaction([(account.contract_address, 'add_plugin', [plugin_class.class_hash])], [signer])
+    assert (await account.is_plugin(plugin_class).call()).result.success == (1)
 
 # @pytest.mark.asyncio
 # async def test_call_dapp_with_session_key(account_factory, plugin_factory, dapp_factory, get_starknet):
