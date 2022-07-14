@@ -97,6 +97,7 @@ async def test_remove_plugin(account_factory, signer_plugin_factory):
     # we shouldnt be able to remove base plugin
     try:
         tx_exec_info = await sender.send_transaction([(account.contract_address, 'remove_plugin', [base_plugin_class.class_hash])], [signer])
+        raise "should have been reverted. should not be able to remove default plugin"
     except:
         pass
     assert (await account.is_plugin(base_plugin_class.class_hash).call()).result.success == (1)
@@ -109,6 +110,23 @@ async def test_remove_plugin(account_factory, signer_plugin_factory):
     tx_exec_info = await sender.send_transaction([(account.contract_address, 'remove_plugin', [plugin_class.class_hash])], [signer])
     assert (await account.is_plugin(plugin_class.class_hash).call()).result.success == (0)
  
+@pytest.mark.asyncio
+async def test_add_remove_public_key(account_factory):
+    account, account_class, base_plugin, base_plugin_class = account_factory
+    sender = TransactionSender(account)
+    
+    tx = await sender.send_transaction([(account.contract_address, 'add_public_key', [0])], [signer])
+    assert (await sender.send_transaction([(account.contract_address, 'is_public_key', [0])], [signer])).result[0] == 1
+
+    tx = await sender.send_transaction([(account.contract_address, 'remove_public_key', [0])], [signer])
+    assert (await sender.send_transaction([(account.contract_address, 'is_public_key', [0])], [signer])).result[0] == 0
+
+    # try:
+    #     tx = await sender.send_transaction([(account.contract_address, 'remove_public_key', [1])], [signer])
+    #     raise "should have been reverted. invalid public key"
+    # except:
+    #     pass
+
 
 # @pytest.mark.asyncio
 # async def test_call_dapp_with_session_key(account_factory, plugin_factory, dapp_factory, get_starknet):

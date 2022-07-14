@@ -60,6 +60,7 @@ func add_public_key{
     return ()
 end
 
+@external
 func remove_public_key{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
