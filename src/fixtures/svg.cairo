@@ -1,6 +1,6 @@
 %lang starknet
 
-from src.util.svg import Cell, generate_character
+from src.tokens.Avatar.library import Cell, generate_character
 from src.util.str import string
 
 @view

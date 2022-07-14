@@ -7,8 +7,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
-from starkware.cairo.common.bool import (TRUE, FALSE)
-
+from starkware.cairo.common.bool import (TRUE)
 
 from src.account.IPlugin import IPlugin
 
