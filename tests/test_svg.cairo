@@ -1,6 +1,6 @@
 %lang starknet
 
-from src.util.svg import Cell
+from src.tokens.Avatar.library import Cell
 from src.util.str import string
 
 @contract_interface

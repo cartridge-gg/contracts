@@ -108,18 +108,18 @@ func str_empty{range_check_ptr}() -> (str : string):
     return (string(len, arr))
 end
 
-#
-# Convert felt (decimal fixed point) into ascii-encoded felt representing str(felt); return a literal
-# e.g. num_fp=15, scale_fp=1 => interpreted as '1.5', return (49)*(256**2) + (46)*256 + (53)
-#
-func literal_from_fp_number{range_check_ptr}(num_fp : felt, scale_fp : felt) -> (literal : felt):
-end
+# #
+# # Convert felt (decimal fixed point) into ascii-encoded felt representing str(felt); return a literal
+# # e.g. num_fp=15, scale_fp=1 => interpreted as '1.5', return (49)*(256**2) + (46)*256 + (53)
+# #
+# func literal_from_fp_number{range_check_ptr}(num_fp : felt, scale_fp : felt) -> (literal : felt):
+# end
 
-#
-# Same as literal_from_fp_number but return a string instance
-#
-func str_from_fp_number{range_check_ptr}(num_fp : felt, scale_fp : felt) -> (str : string):
-end
+# #
+# # Same as literal_from_fp_number but return a string instance
+# #
+# func str_from_fp_number{range_check_ptr}(num_fp : felt, scale_fp : felt) -> (str : string):
+# end
 
 #
 # Convert felt (decimal integer) into ascii-encoded felt representing str(felt); return a literal
@@ -201,21 +201,21 @@ func str_from_number{range_check_ptr}(num : felt) -> (str : string):
     return (str)
 end
 
-#
-# Convert felt (decimal) to ascii-encoded felt representing str(hex(felt)), return a string;
-# need to provide desired hex length as input arg
-# e.g. num = 10, hexlen = 2 => returns '0A' in string
-# e.g. num = 10, hexlen = 1 => returns 'A' in string
-# note: particularly useful for handling MIDI format
-#
-func str_hex_from_number{range_check_ptr}(num : felt, hexlen : felt) -> (str : string):
-    #
-    # Algorithm
-    # 1. convert `num` in decimal to an array of string(literal)
-    #    e.g. convert 25 to array [str_from_literal('F'), str_from_literal('9')]
-    # 2. run str_concat_array() on the array
-    #
-end
+# #
+# # Convert felt (decimal) to ascii-encoded felt representing str(hex(felt)), return a string;
+# # need to provide desired hex length as input arg
+# # e.g. num = 10, hexlen = 2 => returns '0A' in string
+# # e.g. num = 10, hexlen = 1 => returns 'A' in string
+# # note: particularly useful for handling MIDI format
+# #
+# func str_hex_from_number{range_check_ptr}(num : felt, hexlen : felt) -> (str : string):
+#     #
+#     # Algorithm
+#     # 1. convert `num` in decimal to an array of string(literal)
+#     #    e.g. convert 25 to array [str_from_literal('F'), str_from_literal('9')]
+#     # 2. run str_concat_array() on the array
+#     #
+# end
 
 #
 # Get ascii in decimal value from given digit

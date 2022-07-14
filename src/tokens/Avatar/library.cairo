@@ -129,20 +129,21 @@ end
 func num_neighbors{range_check_ptr}(cell_list : Cell*, n_steps, dict : DictAccess*) -> (num: felt):
     alloc_locals
 
+    local above
+    local below
+    local left
+    local right
+
     let (check_above) = is_le(n_steps, 3)
     if check_above != 0:
         let cell : DictAccess* = dict + (DictAccess.SIZE * 4)
-        tempvar above = cell.prev_value
-    else:
-        tempvar above = 0
+        above = cell.prev_value
     end
 
     let (check_below) = is_le(28, n_steps)
     if check_below != 0:
         let cell : DictAccess* = dict - (DictAccess.SIZE * 4)
-        tempvar below = cell.prev_value
-    else:
-        tempvar below = 0
+        below = cell.prev_value
     end
     
     let (_, x) = unsigned_div_rem(n_steps, 4)
@@ -150,17 +151,13 @@ func num_neighbors{range_check_ptr}(cell_list : Cell*, n_steps, dict : DictAcces
     let (check_left) = is_le(0, x)
     if check_left != 0:
         let cell : DictAccess* = dict - DictAccess.SIZE
-        tempvar left = cell.prev_value
-    else:
-        tempvar left = 0
+        left = cell.prev_value
     end
 
     let (check_right) = is_le(x, 3)
     if check_right != 0:
         let cell : DictAccess* = dict + DictAccess.SIZE
-        tempvar right = cell.prev_value
-    else:
-        tempvar right = 0
+        right = cell.prev_value
     end
 
     let n = above + below + left + right
@@ -173,6 +170,9 @@ func grow{range_check_ptr}(cell_list : Cell*, n_steps, dict : DictAccess*) -> (
     if n_steps == 0:
         return (dict=dict)
     end
+
+    let (prob, _) = unsigned_div_rem(0, n_steps + 1)
+    let (_, event) = unsigned_div_rem(prob, 2)
 
     assert dict.key = 32 - n_steps
 
