@@ -97,7 +97,7 @@ async def test_remove_plugin(account_factory, signer_plugin_factory):
     # we shouldnt be able to remove base plugin
     try:
         tx_exec_info = await sender.send_transaction([(account.contract_address, 'remove_plugin', [base_plugin_class.class_hash])], [signer])
-        raise "should have been reverted. should not be able to remove default plugin"
+        raise Exception("should have been reverted. should not be able to remove default plugin")
     except:
         pass
     assert (await account.is_plugin(base_plugin_class.class_hash).call()).result.success == (1)
@@ -121,11 +121,11 @@ async def test_add_remove_public_key(account_factory):
     tx = await sender.send_transaction([(account.contract_address, 'remove_public_key', [0])], [signer])
     assert (await sender.send_transaction([(account.contract_address, 'is_public_key', [0])], [signer])).result[0] == 0
 
-    # try:
-    #     tx = await sender.send_transaction([(account.contract_address, 'remove_public_key', [1])], [signer])
-    #     raise "should have been reverted. invalid public key"
-    # except:
-    #     pass
+    try:
+        tx = await sender.send_transaction([(account.contract_address, 'remove_public_key', [1])], [signer])
+        raise Exception("should have been reverted. invalid public key")
+    except:
+        pass
 
 
 # @pytest.mark.asyncio
