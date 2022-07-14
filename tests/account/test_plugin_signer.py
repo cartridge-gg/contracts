@@ -79,7 +79,7 @@ async def account_factory(controller_plugin_factory, get_starknet):
 
 
 @pytest.mark.asyncio
-async def test_add_plugin(account_factory, controller_plugin_factory, signer_plugin_factory):
+async def test_add_plugin(account_factory, signer_plugin_factory):
     account, account_class, base_plugin, base_plugin_class = account_factory
     sender = TransactionSender(account)
 
@@ -90,7 +90,7 @@ async def test_add_plugin(account_factory, controller_plugin_factory, signer_plu
     assert (await account.is_plugin(plugin_class.class_hash).call()).result.success == (1)
 
 @pytest.mark.asyncio
-async def test_remove_plugin(account_factory, controller_plugin_factory, signer_plugin_factory):
+async def test_remove_plugin(account_factory, signer_plugin_factory):
     account, account_class, base_plugin, base_plugin_class = account_factory
     sender = TransactionSender(account)
 

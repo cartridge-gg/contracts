@@ -8,6 +8,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
 from starkware.cairo.common.bool import (TRUE, FALSE)
+from starkware.cairo.common.math import assert_not_zero
 
 from src.account.IPlugin import IPlugin
 
@@ -71,6 +72,22 @@ namespace Controller:
         }(new_public_key: felt):
         assert_only_self()
         Controller_public_key.write(new_public_key, 1)
+        return ()
+    end
+
+    func remove_public_key{
+            syscall_ptr : felt*,
+            pedersen_ptr : HashBuiltin*,
+            range_check_ptr
+        }(public_key: felt):
+        assert_only_self()
+        
+        with_attr error_message("invalid public key"):
+            let (valid) = is_public_key(public_key)
+            assert_not_zero(valid)
+        end
+
+        Controller_public_key.write(public_key, 0)
         return ()
     end
 
