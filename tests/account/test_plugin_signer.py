@@ -53,7 +53,7 @@ async def dapp_factory(get_starknet):
 
 
 @pytest_asyncio.fixture
-async def webauthn_plugin_factory(get_starknet):
+async def controller_plugin_factory(get_starknet):
     starknet = get_starknet
     plugin_session, plugin_class = await deploy(starknet, "src/account/plugins/controller/Controller.cairo")
     return plugin_session, plugin_class
@@ -61,14 +61,14 @@ async def webauthn_plugin_factory(get_starknet):
 @pytest_asyncio.fixture
 async def signer_plugin_factory(get_starknet):
     starknet = get_starknet
-    plugin_session, plugin_class = await deploy(starknet, "src/account/plugins/signer/SingleSigner.cairo")
+    plugin_session, plugin_class = await deploy(starknet, "src/account/plugins/signer/Signer.cairo")
     return plugin_session, plugin_class
 
 
 @pytest_asyncio.fixture
-async def account_factory(webauthn_plugin_factory, get_starknet):
+async def account_factory(controller_plugin_factory, get_starknet):
     starknet = get_starknet
-    plugin, plugin_class = webauthn_plugin_factory
+    plugin, plugin_class = controller_plugin_factory
 
     account, account_class = await deploy(starknet, "src/account/PluginAccount.cairo", [plugin_class.class_hash, 7, 0, 0, 0, 0, 0, 0, signer.public_key])
     return account, account_class, plugin, plugin_class
@@ -79,7 +79,7 @@ async def account_factory(webauthn_plugin_factory, get_starknet):
 
 
 @pytest.mark.asyncio
-async def test_add_plugin(account_factory, webauthn_plugin_factory, signer_plugin_factory):
+async def test_add_plugin(account_factory, controller_plugin_factory, signer_plugin_factory):
     account, account_class, base_plugin, base_plugin_class = account_factory
     sender = TransactionSender(account)
 
@@ -90,7 +90,7 @@ async def test_add_plugin(account_factory, webauthn_plugin_factory, signer_plugi
     assert (await account.is_plugin(plugin_class.class_hash).call()).result.success == (1)
 
 @pytest.mark.asyncio
-async def test_remove_plugin(account_factory, webauthn_plugin_factory, signer_plugin_factory):
+async def test_remove_plugin(account_factory, controller_plugin_factory, signer_plugin_factory):
     account, account_class, base_plugin, base_plugin_class = account_factory
     sender = TransactionSender(account)
 
