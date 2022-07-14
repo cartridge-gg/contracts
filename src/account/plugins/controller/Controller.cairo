@@ -6,7 +6,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.starknet.common.syscalls import get_tx_info
 
 from openzeppelin.security.initializable import Initializable
-from src.account.plugins.signer.library import Signer
+from src.account.plugins.controller.library import Controller
 
 struct BigInt3:
     member d0 : felt
@@ -28,7 +28,7 @@ func initialize{
         range_check_ptr
     }(x: BigInt3, y: BigInt3, public_key: felt):
     Initializable.initialized()
-    Signer.initializer(public_key)
+    Controller.initializer(public_key)
     return ()
 end
 
@@ -37,12 +37,12 @@ end
 #
 
 @view
-func get_public_key{
+func is_public_key{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }() -> (res: felt):
-    let (res) = Signer.get_public_key()
+    }(public_key: felt) -> (res: felt):
+    let (res) = Controller.is_public_key(public_key)
     return (res=res)
 end
 
@@ -51,12 +51,12 @@ end
 #
 
 @external
-func set_public_key{
+func add_public_key{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(new_public_key: felt):
-    Signer.set_public_key(new_public_key)
+    Controller.add_public_key(new_public_key)
     return ()
 end
 
@@ -74,9 +74,9 @@ func is_valid_signature{
         hash: felt,
         signature_len: felt,
         signature: felt*
-    ) -> ():
-    Signer.is_valid_signature(hash, signature_len, signature)
-    return ()
+    ) -> (is_valid: felt):
+    let (is_valid) = Controller.is_valid_signature(hash, signature_len, signature)
+    return (is_valid=is_valid)
 end
 
 @external

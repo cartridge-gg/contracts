@@ -5,7 +5,7 @@
 from openzeppelin.account.library import AccountCallArray
 
 @contract_interface
-namespace ISigner:
+namespace IController:
     func initialize(public_key: felt):
     end
 
@@ -13,14 +13,14 @@ namespace ISigner:
     # Getters
     #
 
-    func get_public_key() -> (res: felt):
-    end
-
     #
     # Setters
     #
 
-    func set_public_key(new_public_key: felt):
+    func add_public_key(new_public_key: felt):
+    end
+
+    func remove_public_key(public_key: felt):
     end
 
     #
