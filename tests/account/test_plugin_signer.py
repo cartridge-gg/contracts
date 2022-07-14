@@ -55,7 +55,7 @@ async def dapp_factory(get_starknet):
 @pytest_asyncio.fixture
 async def webauthn_plugin_factory(get_starknet):
     starknet = get_starknet
-    plugin_session, plugin_class = await deploy(starknet, "src/account/plugins/signer/WebAuthnSigner.cairo")
+    plugin_session, plugin_class = await deploy(starknet, "src/account/plugins/controller/Controller.cairo")
     return plugin_session, plugin_class
 
 @pytest_asyncio.fixture

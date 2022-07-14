@@ -7,6 +7,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
+from starkware.cairo.common.bool import (TRUE, FALSE)
 
 from src.account.IPlugin import IPlugin
 
@@ -15,10 +16,10 @@ from src.account.IPlugin import IPlugin
 #
 
 @storage_var
-func Signer_public_key() -> (res: felt):
+func Controller_public_key(pub: felt) -> (res: felt):
 end
 
-namespace Signer:
+namespace Controller:
 
     #
     # Initializer
@@ -29,7 +30,7 @@ namespace Signer:
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
         }(_public_key: felt):
-        Signer_public_key.write(_public_key)
+        Controller_public_key.write(_public_key, 1)
         return()
     end
 
@@ -50,12 +51,12 @@ namespace Signer:
     # Getters
     #
 
-    func get_public_key{
+    func is_public_key{
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
-        }() -> (res: felt):
-        let (res) = Signer_public_key.read()
+        }(public_key: felt) -> (res: felt):
+        let (res) = Controller_public_key.read(public_key)
         return (res=res)
     end
 
@@ -63,13 +64,13 @@ namespace Signer:
     # Setters
     #
 
-    func set_public_key{
+    func add_public_key{
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
         }(new_public_key: felt):
         assert_only_self()
-        Signer_public_key.write(new_public_key)
+        Controller_public_key.write(new_public_key, 1)
         return ()
     end
 
@@ -87,20 +88,24 @@ namespace Signer:
             signature_len: felt,
             signature: felt*
         ) -> (is_valid: felt):
-        let (_public_key) = Signer_public_key.read()
-
         # This interface expects a signature pointer and length to make
         # no assumption about signature validation schemes.
-        # But this implementation does, and it expects a (sig_r, sig_s) pair.
-        let sig_r = signature[0]
-        let sig_s = signature[1]
+        # But this implementation does, and it expects a (pub, sig_r, sig_s) tuple.
+        let public_key = signature[0]
+        let sig_r = signature[1]
+        let sig_s = signature[2]
 
-        verify_ecdsa_signature(
-            message=hash,
-            public_key=_public_key,
-            signature_r=sig_r,
-            signature_s=sig_s)
+        let (is_pub) = Controller_public_key.read(public_key)
 
-        return ()
+        if is_pub == TRUE:
+            verify_ecdsa_signature(
+                message=hash,
+                public_key=public_key,
+                signature_r=sig_r,
+                signature_s=sig_s)
+            return (is_valid=TRUE)
+        end
+
+        return (is_valid=FALSE)
     end
 end
