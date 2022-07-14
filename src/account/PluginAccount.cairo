@@ -158,6 +158,7 @@ func __execute__{
         _current_plugin.write(plugin_id)
         validate_with_plugin(plugin_id, plugin_data_len, plugin_data, call_array_len - 1, call_array + CallArray.SIZE, calldata_len, calldata)
         let (response_len, response) = execute_with_plugin(plugin_id, plugin_data_len, plugin_data, call_array_len - 1, call_array + CallArray.SIZE, calldata_len, calldata)
+        _current_plugin.write(0)
         return (retdata_size=response_len, retdata=response)
     else:
         let (default_plugin) = _default_plugin.read()
