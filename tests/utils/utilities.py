@@ -49,16 +49,15 @@ def assert_event_emmited(tx_exec_info, from_address, name, data=[]):
 
 contract_classes = {}
 
-
 async def deploy(starknet, path, params=None):
     params = params or []
     if path in contract_classes:
-        contract_class = contract_classes[path]
+        contract_class, class_hash = contract_classes[path]
     else:
         contract_class = compile_starknet_files(
             [path], debug_info=True, cairo_path=CAIRO_PATH,)
-        contract_classes[path] = contract_class
         class_hash = await starknet.declare(contract_class=contract_class)
+        contract_classes[path] = contract_class, class_hash
     deployed_contract = await starknet.deploy(contract_class=contract_class, constructor_calldata=params)
     return deployed_contract, class_hash
 

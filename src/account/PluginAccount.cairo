@@ -6,7 +6,7 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.common.math import assert_not_zero, assert_le, assert_nn
+from starkware.cairo.common.math import assert_not_zero, assert_not_equal, assert_le, assert_nn
 from starkware.cairo.common.math_cmp import is_not_zero
 from starkware.starknet.common.syscalls import (
     library_call, call_contract, get_tx_info, get_contract_address, get_caller_address, get_block_timestamp, deploy
@@ -217,6 +217,29 @@ func add_plugin{
         calldata=plugin_calldata)
 
     return()
+end
+
+@external
+func remove_plugin{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+    }(plugin: felt):
+    
+    let (exists) = _plugins.read(plugin)
+    with_attr error_message("has to be plugin"):
+        assert_not_zero(exists)
+    end
+
+    # cannot remove default plugin
+    with_attr error_message("default plugin cannot be removed"):
+        let (default_plugin) = _default_plugin.read()
+        assert_not_equal(plugin, default_plugin)
+    end
+
+    _plugins.write(plugin, 0)
+
+    return ()
 end
 
 @external
