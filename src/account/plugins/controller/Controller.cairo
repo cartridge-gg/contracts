@@ -60,6 +60,15 @@ func add_public_key{
     return ()
 end
 
+func remove_public_key{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(public_key: felt):    
+    Controller.remove_public_key(public_key)
+    return ()
+end
+
 #
 # Business logic
 #
