@@ -99,7 +99,7 @@ func is_valid_signature{
     # split signatures into 3 values
     let sig_r = BigInt3(0,0,0)
     %{
-        x = divmod(signature[0], BASE)
+        x = divmod(ids.signature[0], BASE)
         y = divmod(x[1], BASE)
         ids.sig_r.x = x[1]
         ids.sig_r.y = y[1]
@@ -109,7 +109,7 @@ func is_valid_signature{
 
     let sig_s = BigInt3(0,0,0)
     %{
-        x = divmod(signature[1], BASE)
+        x = divmod(ids.signature[1], BASE)
         y = divmod(x[1], BASE)
         ids.sig_s.x = x[1]
         ids.sig_s.y = y[1]
@@ -118,7 +118,7 @@ func is_valid_signature{
 
     let hash_bigint3 = BigInt3(0,0,0)
     %{
-        x = divmod(hash, BASE)
+        x = divmod(ids.hash, BASE)
         y = divmod(x[1], BASE)
         ids.sig_s.x = x[1]
         ids.sig_s.y = y[1]
@@ -158,7 +158,7 @@ func validate{
     # split signatures into 3 values
     let sig_r = BigInt3(0,0,0)
     %{
-        x = divmod(signature[0], BASE)
+        x = divmod(ids.signature[0], BASE)
         y = divmod(x[1], BASE)
         ids.sig_r.x = x[1]
         ids.sig_r.y = y[1]
@@ -168,7 +168,7 @@ func validate{
 
     let sig_s = BigInt3(0,0,0)
     %{
-        x = divmod(signature[1], BASE)
+        x = divmod(ids.signature[1], BASE)
         y = divmod(x[1], BASE)
         ids.sig_s.x = x[1]
         ids.sig_s.y = y[1]
