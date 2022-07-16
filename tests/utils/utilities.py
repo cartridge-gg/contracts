@@ -7,6 +7,8 @@ from starkware.starknet.business_logic.execution.objects import Event
 from starkware.starknet.compiler.compile import get_selector_from_name
 
 CAIRO_PATH = [
+    "lib/common_ec_cairo",
+    "lib/common_ec_cairo/ec",
     "lib/cairo_contracts/src",
     "lib/argent_contracts_starknet",
     "lib/cairo_base64",

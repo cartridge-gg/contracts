@@ -127,6 +127,16 @@ async def test_add_remove_public_key(account_factory):
     except:
         pass
 
+# @pytest.mark.asyncio
+# async def test_p256_verify(account_factory, get_starknet):
+#     starknet = get_starknet
+#     account, account_class, base_plugin, base_plugin_class = account_factory
+#     sender = TransactionSender(account)
+
+    
+#     p256, p256_class = await deploy(starknet, "src/fixtures/p-256.cairo")
+#     tx = await sender.send_transaction([(p256.contract_address, 'test_p256_verify_tx_hash', [])], [signer])
+
 
 # @pytest.mark.asyncio
 # async def test_call_dapp_with_session_key(account_factory, plugin_factory, dapp_factory, get_starknet):
