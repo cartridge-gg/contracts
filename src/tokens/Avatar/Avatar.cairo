@@ -10,7 +10,7 @@ from openzeppelin.introspection.ERC165 import ERC165
 from openzeppelin.security.pausable import Pausable
 from openzeppelin.access.ownable import Ownable
 
-from src.tokens.Avatar.library import return_svg_header
+from src.tokens.Avatar.library import generate_character, return_svg_header
 from src.util.str import string, str_concat, str_from_literal
 
 #
@@ -86,10 +86,8 @@ end
 func tokenURI{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     tokenId : Uint256
 ) -> (tokenURI_len : felt, tokenURI : felt*):
-    let (header: string) = return_svg_header(300, 300)
-    let (footer: string) = str_from_literal('</svg>')
-    let (str : string) = str_concat(header, footer)
-    return (tokenURI_len=str.arr_len, tokenURI=str.arr)
+    let (svg) = generate_character(seed=tokenId.low)
+    return (tokenURI_len=svg.arr_len, tokenURI=svg.arr)
 end
 
 @view

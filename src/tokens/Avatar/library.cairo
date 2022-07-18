@@ -47,7 +47,6 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     # Format:
     # <svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">
 
-    # literal/str_from_number only supports integer for now
     let (w_literal : felt) = literal_from_number(w)
     let (h_literal : felt) = literal_from_number(h)
 
