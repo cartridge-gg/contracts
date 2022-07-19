@@ -14,13 +14,10 @@ from starkware.cairo.common.serialize import serialize_word
 
 from src.account.IPlugin import IPlugin
 from src.util.sha256 import finalize_sha256, sha256
-from src.util.pow2 import pow2
 
 from ec import EcPoint
 from bigint import BigInt3
 from examples.ecdsa import verify_ecdsa
-
-const BASE = 2**86
 
 #
 # Storage

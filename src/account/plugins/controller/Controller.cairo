@@ -12,8 +12,6 @@ from starkware.cairo.common.bool import (TRUE, FALSE)
 
 from ec import EcPoint
 
-const BASE = 2**86
-
 struct CallArray:
     member to: felt
     member selector: felt

@@ -4,7 +4,6 @@ from hashlib import sha256
 
 BASE = 2 ** 86
 
-
 class MockP256Signer():
     def __init__(self, private_key=None):
         if private_key is None:
@@ -40,12 +39,6 @@ class MockP256Signer():
             32, byteorder="big"), self.private_key, curve.P256)
         r0, r1, r2 = split(r)
         s0, s1, s2 = split(s)
-
-        d = sha256(message_hash.to_bytes(
-            32, byteorder="big"))
-
-        print("digest", d.hexdigest())
-        print(split(int(d.hexdigest(), 16)))
 
         # the hash and signature are returned for other tests to use
         return await account.__execute__(call_array, calldata, nonce).invoke(
