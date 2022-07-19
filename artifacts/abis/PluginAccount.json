@@ -1,0 +1,288 @@
+[
+    {
+        "members": [
+            {
+                "name": "to",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "selector",
+                "offset": 1,
+                "type": "felt"
+            },
+            {
+                "name": "data_offset",
+                "offset": 2,
+                "type": "felt"
+            },
+            {
+                "name": "data_len",
+                "offset": 3,
+                "type": "felt"
+            }
+        ],
+        "name": "CallArray",
+        "size": 4,
+        "type": "struct"
+    },
+    {
+        "data": [
+            {
+                "name": "new_implementation",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "account_upgraded",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "hash",
+                "type": "felt"
+            },
+            {
+                "name": "response_len",
+                "type": "felt"
+            },
+            {
+                "name": "response",
+                "type": "felt*"
+            }
+        ],
+        "keys": [],
+        "name": "transaction_executed",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "contract_address",
+                "type": "felt"
+            },
+            {
+                "name": "class_hash",
+                "type": "felt"
+            },
+            {
+                "name": "salt",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "contract_deployed",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "name": "plugin",
+                "type": "felt"
+            },
+            {
+                "name": "plugin_calldata_len",
+                "type": "felt"
+            },
+            {
+                "name": "plugin_calldata",
+                "type": "felt*"
+            }
+        ],
+        "name": "constructor",
+        "outputs": [],
+        "type": "constructor"
+    },
+    {
+        "inputs": [
+            {
+                "name": "call_array_len",
+                "type": "felt"
+            },
+            {
+                "name": "call_array",
+                "type": "CallArray*"
+            },
+            {
+                "name": "calldata_len",
+                "type": "felt"
+            },
+            {
+                "name": "calldata",
+                "type": "felt*"
+            },
+            {
+                "name": "nonce",
+                "type": "felt"
+            }
+        ],
+        "name": "__execute__",
+        "outputs": [
+            {
+                "name": "retdata_size",
+                "type": "felt"
+            },
+            {
+                "name": "retdata",
+                "type": "felt*"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "class_hash",
+                "type": "felt"
+            },
+            {
+                "name": "contract_address_salt",
+                "type": "felt"
+            },
+            {
+                "name": "constructor_calldata_len",
+                "type": "felt"
+            },
+            {
+                "name": "constructor_calldata",
+                "type": "felt*"
+            }
+        ],
+        "name": "deploy_contract",
+        "outputs": [
+            {
+                "name": "contract_address",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "plugin",
+                "type": "felt"
+            },
+            {
+                "name": "plugin_calldata_len",
+                "type": "felt"
+            },
+            {
+                "name": "plugin_calldata",
+                "type": "felt*"
+            }
+        ],
+        "name": "add_plugin",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "plugin",
+                "type": "felt"
+            }
+        ],
+        "name": "remove_plugin",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "implementation",
+                "type": "felt"
+            }
+        ],
+        "name": "upgrade",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "selector",
+                "type": "felt"
+            },
+            {
+                "name": "calldata_size",
+                "type": "felt"
+            },
+            {
+                "name": "calldata",
+                "type": "felt*"
+            }
+        ],
+        "name": "__default__",
+        "outputs": [
+            {
+                "name": "retdata_size",
+                "type": "felt"
+            },
+            {
+                "name": "retdata",
+                "type": "felt*"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "interfaceId",
+                "type": "felt"
+            }
+        ],
+        "name": "supportsInterface",
+        "outputs": [
+            {
+                "name": "success",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_nonce",
+        "outputs": [
+            {
+                "name": "nonce",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "plugin",
+                "type": "felt"
+            }
+        ],
+        "name": "is_plugin",
+        "outputs": [
+            {
+                "name": "success",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_version",
+        "outputs": [
+            {
+                "name": "version",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

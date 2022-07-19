@@ -136,4 +136,3 @@ dmypy.json
 
 src/controller.cairo
 *.accounts.json
-artifacts

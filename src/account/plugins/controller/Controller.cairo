@@ -10,7 +10,7 @@ from openzeppelin.security.initializable import Initializable
 from src.account.plugins.controller.library import Controller
 from starkware.cairo.common.bool import (TRUE, FALSE)
 
-from ec import EcPoint
+from src.util.ec import EcPoint
 
 struct CallArray:
     member to: felt
