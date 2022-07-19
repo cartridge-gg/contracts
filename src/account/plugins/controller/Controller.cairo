@@ -2,17 +2,15 @@
 
 %lang starknet
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
 from starkware.starknet.common.syscalls import get_tx_info
+from starkware.cairo.common.alloc import alloc
 
 from openzeppelin.security.initializable import Initializable
 from src.account.plugins.controller.library import Controller
+from starkware.cairo.common.bool import (TRUE, FALSE)
 
-struct BigInt3:
-    member d0 : felt
-    member d1 : felt
-    member d2 : felt
-end
+from ec import EcPoint
 
 struct CallArray:
     member to: felt
@@ -26,9 +24,9 @@ func initialize{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(x: BigInt3, y: BigInt3, public_key: felt):
+    }(pt: EcPoint, public_key: felt):
     Initializable.initialized()
-    Controller.initializer(public_key)
+    Controller.initializer(pt, public_key)
     return ()
 end
 
@@ -79,12 +77,15 @@ func is_valid_signature{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
-        ecdsa_ptr: SignatureBuiltin*
+        ecdsa_ptr: SignatureBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*
     }(
         hash: felt,
         signature_len: felt,
         signature: felt*
     ) -> (is_valid: felt):
+    alloc_locals
+
     let (is_valid) = Controller.is_valid_signature(hash, signature_len, signature)
     return (is_valid=is_valid)
 end
@@ -94,7 +95,8 @@ func validate{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
-        ecdsa_ptr: SignatureBuiltin*
+        ecdsa_ptr: SignatureBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*
     }(
     plugin_data_len: felt,
     plugin_data: felt*,
@@ -103,11 +105,7 @@ func validate{
     calldata_len: felt,
     calldata: felt*
     ):
-    alloc_locals
-
-    # get the tx info
     let (tx_info) = get_tx_info()
     is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature)
-
-    return()
+    return ()
 end
