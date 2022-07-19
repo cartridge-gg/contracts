@@ -8,7 +8,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
 from starkware.cairo.common.bool import (TRUE, FALSE)
-from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.math import assert_not_zero, unsigned_div_rem, split_felt
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.serialize import serialize_word
 
@@ -127,76 +127,69 @@ namespace Controller:
         if signature[0] == 0:
             let (pub_pt) = Controller_p256_point.read()
 
-            # split signatures into 3 values
+            # Implementation expects the r, s components decomposed into their limbs.
             let sig_r0 = BigInt3(signature[1], signature[2], signature[3])
             let sig_s0 = BigInt3(signature[4], signature[5], signature[6])
-
-            %{ print(ids.hash) %}
 
             let (local sha256_ptr_start : felt*) = alloc()
             let sha256_ptr = sha256_ptr_start
 
             let (local input: felt*) = alloc()
-            
+
+            let (high, low) = split_felt(hash)
+
             # Extract words
-            let (b0) = bitwise_and(hash, 4294967295)
-            let (b1) = bitwise_and(hash, 18446744069414584320)
-            let (b2) = bitwise_and(hash, 79228162495817593519834398720)
-            let (b3) = bitwise_and(hash, 340282366841710300949110269838224261120)
-            let (b4) = bitwise_and(hash, 1461501636990620551282746369252908412224164331520)
-            let (b5) = bitwise_and(hash, 6277101733925179126504886505003981583386072424808101969920)
-            let (b6) = bitwise_and(hash, 26959946660873538059280334323183841250429478006438217036639575736320)
-            let (b7) = bitwise_and(hash, 3618502787823632773638135787938152898945323562250106863028656610212797480960)
+            let (b0) = bitwise_and(low, 4294967295)
 
-            assert [input + 0] = b0
-            assert [input + 1] = b1 / 18446744069414584320
-            assert [input + 2] = b2 / 79228162495817593519834398720
-            assert [input + 3] = b3 / 340282366841710300949110269838224261120
-            assert [input + 4] = b4 / 1461501636990620551282746369252908412224164331520
-            assert [input + 5] = b5 / 6277101733925179126504886505003981583386072424808101969920
-            assert [input + 6] = b6 / 26959946660873538059280334323183841250429478006438217036639575736320
-            assert [input + 7] = b7 / 3618502787823632773638135787938152898945323562250106863028656610212797480960
+            let (q1, r1) = unsigned_div_rem(low, 4294967296)
+            let (b1) = bitwise_and(q1, 4294967295)
 
-            let (output: felt*) = sha256{sha256_ptr=sha256_ptr}(input, 31)
+            let (q2, r2) = unsigned_div_rem(q1, 4294967296)
+            let (b2) = bitwise_and(q2, 4294967295)
+
+            let (q3, r3) = unsigned_div_rem(q2, 4294967296)
+            let (b3) = bitwise_and(q3, 4294967295)
+
+            let (b4) = bitwise_and(high, 4294967295)
+
+            let (q5, r5) = unsigned_div_rem(high, 4294967296)
+            let (b5) = bitwise_and(q5, 4294967295)
+
+            let (q6, r6) = unsigned_div_rem(q5, 4294967296)
+            let (b6) = bitwise_and(q6, 4294967295)
+
+            let (q7, r7) = unsigned_div_rem(q6, 4294967296)
+            let (b7) = bitwise_and(q7, 4294967295)
+
+            assert [input + 0] = b7
+            assert [input + 1] = b6
+            assert [input + 2] = b5
+            assert [input + 3] = b4
+            assert [input + 4] = b3
+            assert [input + 5] = b2
+            assert [input + 6] = b1
+            assert [input + 7] = b0
+
+            let (output: felt*) = sha256{sha256_ptr=sha256_ptr}(input, 32)
             finalize_sha256(sha256_ptr, sha256_ptr)
 
-            let h0 = output[0]
-            let h1 = output[1]
-            let h2 = output[2]
-            let h3 = output[3]
-            let h4 = output[4]
-            let h5 = output[5]
-            let h6 = output[6]
-            let h7 = output[7]
+            # Construct 86bit hash limbs
+            let (h02) = bitwise_and(output[5], 4194303)
+            let h0 = output[7] + 2 ** 32 * output[6] + 2 ** 64 * h02
 
-            let o0 = output[3] + 2 ** 32 * output[2] + 2 ** 64 * output[1] + 2 ** 96 * output[0]
-            let o1 = output[7] + 2 ** 32 * output[6] + 2 ** 64 * output[5] + 2 ** 96 * output[4]
+            let (h10, r10) = unsigned_div_rem(output[5], 4194304)
+            let (h13) = bitwise_and(output[2], 4095)
+            let h1 = h10 + output[4] * 2 ** 10 + output[3] * 2 ** 42 + h13 * 2 ** 74
 
-            %{ print("h0", hex(ids.h0)) %}
-            %{ print("h1", hex(ids.h1)) %}
-            %{ print("h2", hex(ids.h2)) %}
-            %{ print("h3", hex(ids.h3)) %}
-            %{ print("h4", hex(ids.h4)) %}
-            %{ print("h5", hex(ids.h5)) %}
-            %{ print("h6", hex(ids.h6)) %}
-            %{ print("h7", hex(ids.h7)) %}
-            %{ print("o0", hex(ids.o0)) %}
-            %{ print("o1", hex(ids.o1)) %}
+            let (h20, r20) = unsigned_div_rem(output[2], 4096)
+            let h2 = h20 + output[1] * 2 ** 20 + output[0] * 2 ** 52
 
-            let hash_bigint3 = BigInt3(0, 0, 0)
-            # %{
-            #     x = divmod(ids.hash, BASE)
-            #     y = divmod(x[1], BASE)
-            #     ids.sig_s0.x = x[1]
-            #     ids.sig_s0.y = y[1]
-            #     ids.sig_s0.y = y[0]
-            # %}
-
-            # verify_ecdsa(
-            #     public_key_pt=pub_pt,
-            #     msg_hash=hash_bigint3,
-            #     r=sig_r0,
-            #     s=sig_s0)
+            let hash_bigint3 = BigInt3(h0, h1, h2)
+            verify_ecdsa(
+                public_key_pt=pub_pt,
+                msg_hash=hash_bigint3,
+                r=sig_r0,
+                s=sig_s0)
 
             return (is_valid=TRUE)
         else:
