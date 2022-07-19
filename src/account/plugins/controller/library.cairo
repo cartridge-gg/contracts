@@ -3,14 +3,19 @@
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_contract_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
-from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
+from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
 from starkware.cairo.common.bool import (TRUE, FALSE)
 from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.bitwise import bitwise_and
+from starkware.cairo.common.serialize import serialize_word
 
 from src.account.IPlugin import IPlugin
+from src.util.sha256 import finalize_sha256, sha256
+from src.util.pow2 import pow2
+
 from ec import EcPoint
 from bigint import BigInt3
 from examples.ecdsa import verify_ecdsa
@@ -110,7 +115,8 @@ namespace Controller:
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr,
-            ecdsa_ptr: SignatureBuiltin*
+            ecdsa_ptr : SignatureBuiltin*,
+            bitwise_ptr : BitwiseBuiltin*
         }(
             hash: felt,
             signature_len: felt,
@@ -125,6 +131,58 @@ namespace Controller:
             let sig_r0 = BigInt3(signature[1], signature[2], signature[3])
             let sig_s0 = BigInt3(signature[4], signature[5], signature[6])
 
+            %{ print(ids.hash) %}
+
+            let (local sha256_ptr_start : felt*) = alloc()
+            let sha256_ptr = sha256_ptr_start
+
+            let (local input: felt*) = alloc()
+            
+            # Extract words
+            let (b0) = bitwise_and(hash, 4294967295)
+            let (b1) = bitwise_and(hash, 18446744069414584320)
+            let (b2) = bitwise_and(hash, 79228162495817593519834398720)
+            let (b3) = bitwise_and(hash, 340282366841710300949110269838224261120)
+            let (b4) = bitwise_and(hash, 1461501636990620551282746369252908412224164331520)
+            let (b5) = bitwise_and(hash, 6277101733925179126504886505003981583386072424808101969920)
+            let (b6) = bitwise_and(hash, 26959946660873538059280334323183841250429478006438217036639575736320)
+            let (b7) = bitwise_and(hash, 3618502787823632773638135787938152898945323562250106863028656610212797480960)
+
+            assert [input + 0] = b0
+            assert [input + 1] = b1 / 18446744069414584320
+            assert [input + 2] = b2 / 79228162495817593519834398720
+            assert [input + 3] = b3 / 340282366841710300949110269838224261120
+            assert [input + 4] = b4 / 1461501636990620551282746369252908412224164331520
+            assert [input + 5] = b5 / 6277101733925179126504886505003981583386072424808101969920
+            assert [input + 6] = b6 / 26959946660873538059280334323183841250429478006438217036639575736320
+            assert [input + 7] = b7 / 3618502787823632773638135787938152898945323562250106863028656610212797480960
+
+            let (output: felt*) = sha256{sha256_ptr=sha256_ptr}(input, 31)
+            finalize_sha256(sha256_ptr, sha256_ptr)
+
+            let h0 = output[0]
+            let h1 = output[1]
+            let h2 = output[2]
+            let h3 = output[3]
+            let h4 = output[4]
+            let h5 = output[5]
+            let h6 = output[6]
+            let h7 = output[7]
+
+            let o0 = output[3] + 2 ** 32 * output[2] + 2 ** 64 * output[1] + 2 ** 96 * output[0]
+            let o1 = output[7] + 2 ** 32 * output[6] + 2 ** 64 * output[5] + 2 ** 96 * output[4]
+
+            %{ print("h0", hex(ids.h0)) %}
+            %{ print("h1", hex(ids.h1)) %}
+            %{ print("h2", hex(ids.h2)) %}
+            %{ print("h3", hex(ids.h3)) %}
+            %{ print("h4", hex(ids.h4)) %}
+            %{ print("h5", hex(ids.h5)) %}
+            %{ print("h6", hex(ids.h6)) %}
+            %{ print("h7", hex(ids.h7)) %}
+            %{ print("o0", hex(ids.o0)) %}
+            %{ print("o1", hex(ids.o1)) %}
+
             let hash_bigint3 = BigInt3(0, 0, 0)
             # %{
             #     x = divmod(ids.hash, BASE)
@@ -134,11 +192,11 @@ namespace Controller:
             #     ids.sig_s0.y = y[0]
             # %}
 
-            verify_ecdsa(
-                public_key_pt=pub_pt,
-                msg_hash=hash_bigint3,
-                r=sig_r0,
-                s=sig_s0)
+            # verify_ecdsa(
+            #     public_key_pt=pub_pt,
+            #     msg_hash=hash_bigint3,
+            #     r=sig_r0,
+            #     s=sig_s0)
 
             return (is_valid=TRUE)
         else:
