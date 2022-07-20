@@ -19,6 +19,18 @@ struct CallArray:
     member data_len: felt
 end
 
+@event
+func controller_init(public_key: felt):
+end
+
+@event
+func controller_add_public_key(public_key: felt):
+end
+
+@event
+func controller_remove_public_key(public_key: felt):
+end
+
 @external
 func initialize{
         syscall_ptr : felt*,
@@ -27,6 +39,7 @@ func initialize{
     }(pt: EcPoint, public_key: felt):
     Initializable.initialized()
     Controller.initializer(pt, public_key)
+    controller_init.emit(public_key)
     return ()
 end
 
@@ -55,6 +68,7 @@ func add_public_key{
         range_check_ptr
     }(new_public_key: felt):
     Controller.add_public_key(new_public_key)
+    controller_add_public_key.emit(new_public_key)
     return ()
 end
 
@@ -65,6 +79,7 @@ func remove_public_key{
         range_check_ptr
     }(public_key: felt):    
     Controller.remove_public_key(public_key)
+    controller_remove_public_key.emit(public_key)
     return ()
 end
 
