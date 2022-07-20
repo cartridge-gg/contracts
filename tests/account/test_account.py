@@ -52,3 +52,9 @@ async def test_remove_plugin(account_factory):
 
     await stark_signer.send_transactions(account, [(account.contract_address, 'remove_plugin', [mock_plugin_class.class_hash])])
     assert (await account.is_plugin(mock_plugin_class.class_hash).call()).result.success == (0)
+
+@pytest.mark.asyncio
+async def test_deploy_contract(account_factory):
+    account, _, _, mock_plugin_class = account_factory
+
+    await stark_signer.send_transactions(account, [(account.contract_address, 'deploy_contract', [mock_plugin_class.class_hash, 0, 0])])
