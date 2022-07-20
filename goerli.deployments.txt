@@ -1,2 +1,2 @@
-0x0564779a6afd848bce9c64cb3d9cbd60aa75065517c60fc5ca8160ff351b42f7:/usr/local/lib/python3.7/site-packages/nile/artifacts/abis/Account.json:account-0
 0x00b78b0ed83641c507d3619991e4fed0d69b1b45bc53810955ee7d092626f2b4:artifacts/abis/Controller.json:controller
+0x07d7bbf672edd77578b8864c3e2900ac9194698220adb1b1ecdc45f9222ca291:artifacts/abis/PluginAccount.json

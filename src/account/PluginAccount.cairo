@@ -205,10 +205,15 @@ func add_plugin{
     # only called via execute
     assert_only_self()
 
-    # add plugin
+    with_attr error_message("plugin already exists"):
+        assert_not_equal(plugin, 1)
+    end
+
     with_attr error_message("plugin cannot be null"):
         assert_not_zero(plugin)
     end
+
+    # add plugin
     _plugins.write(plugin, 1)
 
     library_call(
@@ -226,7 +231,7 @@ func remove_plugin{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     }(plugin: felt):
-    
+
     let (exists) = _plugins.read(plugin)
     with_attr error_message("has to be plugin"):
         assert_not_zero(exists)
