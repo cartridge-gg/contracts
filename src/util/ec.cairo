@@ -17,7 +17,7 @@ end
 func compute_doubling_slope{range_check_ptr}(pt : EcPoint) -> (slope : BigInt3):
     # Note that y cannot be zero: assume that it is, then pt = -pt, so 2 * pt = 0, which
     # contradicts the fact that the size of the curve is odd.
-    
+
     let P = BigInt3(P0, P1, P2)
     let (x_sqr) = bigint_mul(pt.x, pt.x)
     let y_2 = UnreducedBigInt3(

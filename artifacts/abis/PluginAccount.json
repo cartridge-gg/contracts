@@ -29,6 +29,17 @@
     {
         "data": [
             {
+                "name": "account",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "account_created",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
                 "name": "new_implementation",
                 "type": "felt"
             }
@@ -90,9 +101,9 @@
                 "type": "felt*"
             }
         ],
-        "name": "constructor",
+        "name": "initialize",
         "outputs": [],
-        "type": "constructor"
+        "type": "function"
     },
     {
         "inputs": [

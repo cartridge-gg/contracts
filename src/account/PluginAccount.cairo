@@ -13,6 +13,8 @@ from starkware.starknet.common.syscalls import (
 )
 from starkware.cairo.common.bool import (TRUE, FALSE)
 
+from openzeppelin.security.initializable import Initializable
+
 from src.Upgradable import _set_implementation
 
 @contract_interface
@@ -33,7 +35,7 @@ end
 # CONSTANTS
 ####################
 
-const VERSION = '0.2.3'
+const VERSION = '0.3.0'
 
 const SUPPORTS_INTERFACE_SELECTOR = 1184015894760294494673613438913361435336722154500302038630992932234692784845
 const USE_PLUGIN_SELECTOR = 1121675007639292412441492001821602921366030142137563176027248191276862353634
@@ -65,6 +67,10 @@ end
 ####################
 # EVENTS
 ####################
+
+@event
+func account_created(account: felt):
+end
 
 @event
 func account_upgraded(new_implementation: felt):
@@ -99,15 +105,17 @@ func _default_plugin() -> (res: felt):
 end
 
 ####################
-# CONSTRUCTOR
+# EXTERNAL FUNCTIONS
 ####################
 
-@constructor
-func constructor{
+@external
+func initialize{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(plugin: felt, plugin_calldata_len: felt, plugin_calldata: felt*):
+    Initializable.initialized()
+
     # add plugin
     with_attr error_message("plugin cannot be null"):
         assert_not_zero(plugin)
@@ -122,12 +130,11 @@ func constructor{
 
     _default_plugin.write(plugin)
 
+    let (self) = get_contract_address()
+    account_created.emit(self)
+
     return ()
 end
-
-####################
-# EXTERNAL FUNCTIONS
-####################
 
 @external
 @raw_output

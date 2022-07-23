@@ -27,7 +27,9 @@ async def account_factory(controller_plugin_factory, get_starknet):
     starknet = get_starknet
     plugin, plugin_class = controller_plugin_factory
 
-    account, account_class = await deploy(starknet, "src/account/PluginAccount.cairo", [plugin_class.class_hash, 7, *webauthn_signer.public_key, stark_signer.public_key])
+    account, account_class = await deploy(starknet, "src/account/PluginAccount.cairo")
+    await account.initialize(plugin_class.class_hash, [*webauthn_signer.public_key, stark_signer.public_key]).invoke()
+
     return account, account_class, plugin, plugin_class
 
 @pytest.mark.asyncio

@@ -66,6 +66,43 @@
         "type": "struct"
     },
     {
+        "data": [
+            {
+                "name": "account",
+                "type": "felt"
+            },
+            {
+                "name": "public_key",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "controller_init",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "public_key",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "controller_add_public_key",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "public_key",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "controller_remove_public_key",
+        "type": "event"
+    },
+    {
         "inputs": [
             {
                 "name": "pt",

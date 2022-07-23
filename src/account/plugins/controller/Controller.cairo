@@ -3,7 +3,7 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
-from starkware.starknet.common.syscalls import get_tx_info
+from starkware.starknet.common.syscalls import get_tx_info, get_contract_address
 from starkware.cairo.common.alloc import alloc
 
 from openzeppelin.security.initializable import Initializable
@@ -20,7 +20,7 @@ struct CallArray:
 end
 
 @event
-func controller_init(public_key: felt):
+func controller_init(account: felt, public_key: felt):
 end
 
 @event
@@ -39,7 +39,9 @@ func initialize{
     }(pt: EcPoint, public_key: felt):
     Initializable.initialized()
     Controller.initializer(pt, public_key)
-    controller_init.emit(public_key)
+
+    let (self) = get_contract_address()
+    controller_init.emit(self, public_key)
     return ()
 end
 

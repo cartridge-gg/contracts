@@ -2,25 +2,49 @@ import logging
 import pytest
 
 from starkware.starknet.testing.starknet import Starknet
+from starkware.starknet.testing.contract import StarknetContract
+from starkware.starknet.compiler.compile import get_selector_from_name
 
-from utils.signers import StarkSigner, P256Signer
+from utils.signers import StarkSigner
 from utils.deployment import deploy
 
 LOGGER = logging.getLogger(__name__)
 
 stark_signer = StarkSigner(123456789987654321)
 
-@pytest.fixture
-async def account_factory():
+@pytest.fixture(scope='module')
+async def get_starknet():
     starknet = await Starknet.empty()
-    _, signer_plugin_class = await deploy(starknet, "src/account/plugins/signer/Signer.cairo")
+    return starknet
+
+@pytest.fixture
+async def account_factory(get_starknet):
+    starknet = get_starknet
+    signer, signer_plugin_class = await deploy(starknet, "src/account/plugins/signer/Signer.cairo")
     _, mock_plugin_class = await deploy(starknet, "tests/mocks/plugin.cairo")
-    account, account_class = await deploy(starknet, "src/account/PluginAccount.cairo", [signer_plugin_class.class_hash, 1, stark_signer.public_key])
-    return account, account_class, signer_plugin_class, mock_plugin_class
+    account, account_class = await deploy(starknet, "src/account/PluginAccount.cairo")
+    await account.initialize(signer_plugin_class.class_hash, [stark_signer.public_key]).invoke()
+
+    signer_plugin = StarknetContract(
+        state=starknet.state,
+        abi=signer.abi,
+        contract_address=account.contract_address,
+        deploy_execution_info=signer.deploy_execution_info)
+
+    return account, account_class, signer_plugin, signer_plugin_class, mock_plugin_class
+
+@pytest.mark.asyncio
+async def test_default_plugin(account_factory):
+    account, _, signer_plugin, signer_plugin_class, _ = account_factory
+
+    assert (await account.is_plugin(signer_plugin_class.class_hash).call()).result.success == (1)
+
+    print((await signer_plugin.get_public_key().call()).result)
+    assert (await signer_plugin.get_public_key().call()).result.res == stark_signer.public_key
 
 @pytest.mark.asyncio
 async def test_add_plugin(account_factory):
-    account, _, signer_plugin_class, mock_plugin_class = account_factory
+    account, _, _, signer_plugin_class, mock_plugin_class = account_factory
 
     assert (await account.is_plugin(signer_plugin_class.class_hash).call()).result.success == (1)
 
@@ -36,7 +60,7 @@ async def test_add_plugin(account_factory):
 
 @pytest.mark.asyncio
 async def test_remove_plugin(account_factory):
-    account, _, signer_plugin_class, mock_plugin_class = account_factory
+    account, _, _, signer_plugin_class, mock_plugin_class = account_factory
 
     # we shouldnt be able to remove base plugin
     try:
@@ -55,6 +79,13 @@ async def test_remove_plugin(account_factory):
 
 @pytest.mark.asyncio
 async def test_deploy_contract(account_factory):
-    account, _, _, mock_plugin_class = account_factory
+    account, _, _, _, mock_plugin_class = account_factory
 
     await stark_signer.send_transactions(account, [(account.contract_address, 'deploy_contract', [mock_plugin_class.class_hash, 0, 0])])
+
+@pytest.mark.asyncio
+async def test_deploy_with_proxy(get_starknet, account_factory):
+    starknet = get_starknet
+    _, account_class, _, signer_plugin_class, _ = account_factory
+
+    proxy, proxy_class = await deploy(starknet, "src/Proxy.cairo", [account_class.class_hash, get_selector_from_name('initialize'), 3, signer_plugin_class.class_hash, 1, stark_signer.public_key])

@@ -6,9 +6,7 @@ CAIRO_PATH = [
     "lib/common_ec_cairo",
     "lib/common_ec_cairo/ec",
     "lib/cairo_contracts/src",
-    "lib/argent_contracts_starknet",
-    "lib/cairo_base64",
-    "lib/cairo_base64/contracts/lib"]
+    "lib/argent_contracts_starknet"]
 
 contract_classes = {}
 

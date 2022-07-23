@@ -1,6 +1,3 @@
-[submodule "cairo_base64"]
-	url = https://github.com/dhruvkelawala/cairo-base64
-	path = lib/cairo_base64
 [submodule "cairo_contracts"]
 	url = https://github.com/OpenZeppelin/cairo-contracts
 	path = lib/cairo_contracts
