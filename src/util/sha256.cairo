@@ -3,10 +3,13 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
+from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.memset import memset
 from starkware.cairo.common.pow import pow
 
 const SHA256_INPUT_CHUNK_SIZE_FELTS = 16
+const SHA256_INPUT_CHUNK_SIZE_BYTES = 64
 const SHA256_STATE_SIZE_FELTS = 8
 # Each instance consists of 16 words of message, 8 words for the input state and 8 words
 # for the output state.
@@ -23,19 +26,12 @@ const SHA256_INSTANCE_SIZE = SHA256_INPUT_CHUNK_SIZE_FELTS + 2 * SHA256_STATE_SI
 #
 # output is an array of 8 32-bit words (big endian).
 #
-# Assumption: n_bytes <= 55.
-#
 # Note: You must call finalize_sha2() at the end of the program. Otherwise, this function
 # is not sound and a malicious prover may return a wrong result.
 # Note: the interface of this function may change in the future.
-func sha256{range_check_ptr, sha256_ptr : felt*}(input : felt*, n_bytes : felt) -> (output : felt*):
-    assert_nn_le(n_bytes, 55)
-    let sha256_start = sha256_ptr
-    _sha256_input(input=input, n_bytes=n_bytes, n_words=SHA256_INPUT_CHUNK_SIZE_FELTS - 2)
-    assert sha256_ptr[0] = 0
-    assert sha256_ptr[1] = n_bytes * 8
-    let sha256_ptr = sha256_ptr + 2
-
+func sha256{range_check_ptr, sha256_ptr : felt*}(data : felt*, n_bytes : felt) -> (
+    output : felt*
+):
     # Set the initial state to IV.
     assert sha256_ptr[0] = 0x6A09E667
     assert sha256_ptr[1] = 0xBB67AE85
@@ -47,7 +43,23 @@ func sha256{range_check_ptr, sha256_ptr : felt*}(input : felt*, n_bytes : felt) 
     assert sha256_ptr[7] = 0x5BE0CD19
     let sha256_ptr = sha256_ptr + SHA256_STATE_SIZE_FELTS
 
-    let output = sha256_ptr
+    let (output) = sha256_inner(data=data, n_bytes=n_bytes, counter=0)
+    return (output)
+end
+
+# Inner loop for sha256. sha256_ptr points to the middle of an instance: after the initial state,
+# before the message.
+func sha256_inner{range_check_ptr, sha256_ptr : felt*}(
+    data: felt*, n_bytes: felt, counter: felt
+) -> (output : felt*):
+    alloc_locals
+
+    let (is_last_block) = is_le(n_bytes, 55)
+    if is_last_block != 0:
+        sha256_last_block(data=data, n_bytes=n_bytes, counter=counter)
+        return (output=sha256_ptr)
+    end
+
     %{
         from starkware.cairo.common.cairo_sha256.sha256_utils import (
             IV, compute_message_schedule, sha2_compress_function)
@@ -56,12 +68,17 @@ func sha256{range_check_ptr, sha256_ptr : felt*}(input : felt*, n_bytes : felt) 
         assert 0 <= _sha256_input_chunk_size_felts < 100
 
         w = compute_message_schedule(memory.get_range(
-            ids.sha256_start, _sha256_input_chunk_size_felts))
+            ids.data, _sha256_input_chunk_size_felts))
         new_state = sha2_compress_function(IV, w)
-        segments.write_arg(ids.output, new_state)
+        segments.write_arg(ids.sha256_ptr, new_state)
     %}
     let sha256_ptr = sha256_ptr + SHA256_STATE_SIZE_FELTS
-    return (output)
+
+    return sha256_inner(
+        data=data + SHA256_STATE_SIZE_FELTS,
+        n_bytes=n_bytes - SHA256_INPUT_CHUNK_SIZE_BYTES,
+        counter=counter + SHA256_INPUT_CHUNK_SIZE_BYTES,
+    )
 end
 
 func _sha256_input{range_check_ptr, sha256_ptr : felt*}(
@@ -95,6 +112,15 @@ func _sha256_input{range_check_ptr, sha256_ptr : felt*}(
 
     memset(dst=sha256_ptr + 1, value=0, n=n_words - 1)
     let sha256_ptr = sha256_ptr + n_words
+    return ()
+end
+
+func sha256_last_block{range_check_ptr, sha256_ptr : felt*}(
+    data : felt*, n_bytes : felt, counter : felt
+):
+    _sha256_input(data, n_bytes, SHA256_INPUT_CHUNK_SIZE_FELTS - 2)
+    assert sha256_ptr[0] = 0
+    assert sha256_ptr[1] = counter + n_bytes * 8
     return ()
 end
 
