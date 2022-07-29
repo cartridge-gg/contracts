@@ -78,8 +78,8 @@ class P256Signer():
             }"""
         )
 
-        print(len(cred.response.authenticator_data))
-        print(len(cred.response.client_data_json))
+        # print(len(cred.response.authenticator_data))
+        # print(len(cred.response.client_data_json))
 
         # the hash and signature are returned for other tests to use
         return await account.__execute__(call_array, calldata, nonce).invoke(

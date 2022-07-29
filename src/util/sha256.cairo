@@ -29,7 +29,7 @@ const SHA256_INSTANCE_SIZE = SHA256_INPUT_CHUNK_SIZE_FELTS + 2 * SHA256_STATE_SI
 # Note: You must call finalize_sha2() at the end of the program. Otherwise, this function
 # is not sound and a malicious prover may return a wrong result.
 # Note: the interface of this function may change in the future.
-func sha256{range_check_ptr, sha256_ptr : felt*}(data : felt*, n_bytes : felt) -> (
+func sha256{range_check_ptr, sha256_ptr: felt*}(data: felt*, n_bytes: felt) -> (
     output : felt*
 ):
     # Set the initial state to IV.
@@ -42,24 +42,85 @@ func sha256{range_check_ptr, sha256_ptr : felt*}(data : felt*, n_bytes : felt) -
     assert sha256_ptr[6] = 0x1F83D9AB
     assert sha256_ptr[7] = 0x5BE0CD19
     let sha256_ptr = sha256_ptr + SHA256_STATE_SIZE_FELTS
+    let output = sha256_ptr
 
-    let (output) = sha256_inner(data=data, n_bytes=n_bytes, counter=0)
+    sha256_inner(data=data, n_bytes=n_bytes, total_bytes=n_bytes)
+
+    %{ print("output hash") %}
+    let v0 = output[0]
+    %{ print("{:032b}".format(ids.v0)) %}
+    let v1 = output[1]
+    %{ print("{:032b}".format(ids.v1)) %}
+    let v2 = output[2]
+    %{ print("{:032b}".format(ids.v2)) %}
+    let v3 = output[3]
+    %{ print("{:032b}".format(ids.v3)) %}
+    let v4 = output[4]
+    %{ print("{:032b}".format(ids.v4)) %}
+    let v5 = output[5]
+    %{ print("{:032b}".format(ids.v5)) %}
+    let v6 = output[6]
+    %{ print("{:032b}".format(ids.v6)) %}
+    let v7 = output[7]
+    %{ print("{:032b}".format(ids.v7)) %}
+
     return (output)
 end
 
 # Inner loop for sha256. sha256_ptr points to the middle of an instance: after the initial state,
 # before the message.
-func sha256_inner{range_check_ptr, sha256_ptr : felt*}(
-    data: felt*, n_bytes: felt, counter: felt
-) -> (output : felt*):
+func sha256_inner{range_check_ptr, sha256_ptr: felt*}(
+    data: felt*, n_bytes: felt, total_bytes: felt
+):
     alloc_locals
 
+    %{ print(ids.n_bytes) %}
     let (is_last_block) = is_le(n_bytes, 55)
     if is_last_block != 0:
-        sha256_last_block(data=data, n_bytes=n_bytes, counter=counter)
-        return (output=sha256_ptr)
+        sha256_last_block(data=data, n_bytes=n_bytes, total_bytes=total_bytes)
+        return ()
     end
 
+    let (local data_ptr : felt*) = alloc()
+    let data_start = data_ptr
+    let (n) = _sha256_input{data_ptr=data_ptr}(data, n_bytes, SHA256_INPUT_CHUNK_SIZE_FELTS)
+
+    let v0 = data_start[0]
+    %{ print("{:032b}".format(ids.v0)) %}
+    let v1 = data_start[1]
+    %{ print("{:032b}".format(ids.v1)) %}
+    let v2 = data_start[2]
+    %{ print("{:032b}".format(ids.v2)) %}
+    let v3 = data_start[3]
+    %{ print("{:032b}".format(ids.v3)) %}
+    let v4 = data_start[4]
+    %{ print("{:032b}".format(ids.v4)) %}
+    let v5 = data_start[5]
+    %{ print("{:032b}".format(ids.v5)) %}
+    let v6 = data_start[6]
+    %{ print("{:032b}".format(ids.v6)) %}
+    let v7 = data_start[7]
+    %{ print("{:032b}".format(ids.v7)) %}
+    let v8 = data_start[8]
+    %{ print("{:032b}".format(ids.v8)) %}
+    let v9 = data_start[9]
+    %{ print("{:032b}".format(ids.v9)) %}
+    let v10 = data_start[10]
+    %{ print("{:032b}".format(ids.v10)) %}
+    let v11 = data_start[11]
+    %{ print("{:032b}".format(ids.v11)) %}
+    let v12 = data_start[12]
+    %{ print("{:032b}".format(ids.v12)) %}
+    let v13 = data_start[13]
+    %{ print("{:032b}".format(ids.v13)) %}
+    let v14 = data_start[14]
+    %{ print("{:032b}".format(ids.v14)) %}
+    let v15 = data_start[15]
+    %{ print("{:032b}".format(ids.v15)) %}
+
+    let sha256_start = data_start
+    let output = sha256_ptr
+    let working_vars = sha256_ptr - SHA256_STATE_SIZE_FELTS
     %{
         from starkware.cairo.common.cairo_sha256.sha256_utils import (
             IV, compute_message_schedule, sha2_compress_function)
@@ -68,59 +129,159 @@ func sha256_inner{range_check_ptr, sha256_ptr : felt*}(
         assert 0 <= _sha256_input_chunk_size_felts < 100
 
         w = compute_message_schedule(memory.get_range(
-            ids.data, _sha256_input_chunk_size_felts))
+            ids.sha256_start, _sha256_input_chunk_size_felts))
         new_state = sha2_compress_function(IV, w)
-        segments.write_arg(ids.sha256_ptr, new_state)
+        segments.write_arg(ids.output, new_state)
     %}
+
+    %{ print("hash") %}
+    let v0 = sha256_ptr[0]
+    %{ print("{:032b}".format(ids.v0)) %}
+    let v1 = sha256_ptr[1]
+    %{ print("{:032b}".format(ids.v1)) %}
+    let v2 = sha256_ptr[2]
+    %{ print("{:032b}".format(ids.v2)) %}
+    let v3 = sha256_ptr[3]
+    %{ print("{:032b}".format(ids.v3)) %}
+    let v4 = sha256_ptr[4]
+    %{ print("{:032b}".format(ids.v4)) %}
+    let v5 = sha256_ptr[5]
+    %{ print("{:032b}".format(ids.v5)) %}
+    let v6 = sha256_ptr[6]
+    %{ print("{:032b}".format(ids.v6)) %}
+    let v7 = sha256_ptr[7]
+    %{ print("{:032b}".format(ids.v7)) %}
+
     let sha256_ptr = sha256_ptr + SHA256_STATE_SIZE_FELTS
 
     return sha256_inner(
         data=data + SHA256_STATE_SIZE_FELTS,
-        n_bytes=n_bytes - SHA256_INPUT_CHUNK_SIZE_BYTES,
-        counter=counter + SHA256_INPUT_CHUNK_SIZE_BYTES,
+        n_bytes=n_bytes - SHA256_INPUT_CHUNK_SIZE_BYTES + n,
+        total_bytes=total_bytes,
     )
 end
 
-func _sha256_input{range_check_ptr, sha256_ptr : felt*}(
-        input : felt*, n_bytes : felt, n_words : felt):
+func _sha256_input{range_check_ptr, data_ptr: felt*}(
+    input: felt*, n_bytes: felt, n_words: felt) -> (n: felt):
     alloc_locals
 
     local full_word
     %{ ids.full_word = int(ids.n_bytes >= 4) %}
 
     if full_word != 0:
-        assert sha256_ptr[0] = input[0]
-        let sha256_ptr = sha256_ptr + 1
+        assert data_ptr[0] = input[0]
+        let data_ptr = data_ptr + 1
         return _sha256_input(input=input + 1, n_bytes=n_bytes - 4, n_words=n_words - 1)
     end
 
-    # This is the last input word, so we should add a byte '0x80' at the end and fill the rest with
-    # zeros.
+    %{ print(ids.n_words, ids.n_bytes) %}
+
+    let (end_block) = is_le(n_words, 13)
 
     if n_bytes == 0:
-        assert sha256_ptr[0] = 0x80000000
-        memset(dst=sha256_ptr + 1, value=0, n=n_words - 1)
-        let sha256_ptr = sha256_ptr + n_words
-        return ()
+        if end_block == 1:
+            # This is the last input word, so we should add a byte '0x80' at the end and fill the rest with
+            # zeros.
+            assert data_ptr[0] = 0x80000000
+            memset(dst=data_ptr + 1, value=0, n=n_words - 1)
+        else:
+            memset(dst=data_ptr, value=0, n=n_words)
+        end
+
+        let data_ptr = data_ptr + n_words
+        return (4)
     end
 
     assert_nn_le(n_bytes, 3)
     let (padding) = pow(256, 3 - n_bytes)
     local range_check_ptr = range_check_ptr
 
-    assert sha256_ptr[0] = input[0] + padding * 0x80
+    assert data_ptr[0] = input[0] + padding * 0x80
 
-    memset(dst=sha256_ptr + 1, value=0, n=n_words - 1)
-    let sha256_ptr = sha256_ptr + n_words
-    return ()
+    memset(dst=data_ptr + 1, value=0, n=n_words - 1)
+    let data_ptr = data_ptr + n_words
+    return (0)
 end
 
 func sha256_last_block{range_check_ptr, sha256_ptr : felt*}(
-    data : felt*, n_bytes : felt, counter : felt
+    data : felt*, n_bytes : felt, total_bytes : felt
 ):
-    _sha256_input(data, n_bytes, SHA256_INPUT_CHUNK_SIZE_FELTS - 2)
-    assert sha256_ptr[0] = 0
-    assert sha256_ptr[1] = counter + n_bytes * 8
+    alloc_locals
+
+    let (local data_ptr : felt*) = alloc()
+    let data_start = data_ptr
+    _sha256_input{data_ptr=data_ptr}(data, n_bytes, SHA256_INPUT_CHUNK_SIZE_FELTS - 2)
+    assert data_ptr[0] = 0
+    assert data_ptr[1] = total_bytes * 8
+
+    let v0 = data_start[0]
+    %{ print("{:032b}".format(ids.v0)) %}
+    let v1 = data_start[1]
+    %{ print("{:032b}".format(ids.v1)) %}
+    let v2 = data_start[2]
+    %{ print("{:032b}".format(ids.v2)) %}
+    let v3 = data_start[3]
+    %{ print("{:032b}".format(ids.v3)) %}
+    let v4 = data_start[4]
+    %{ print("{:032b}".format(ids.v4)) %}
+    let v5 = data_start[5]
+    %{ print("{:032b}".format(ids.v5)) %}
+    let v6 = data_start[6]
+    %{ print("{:032b}".format(ids.v6)) %}
+    let v7 = data_start[7]
+    %{ print("{:032b}".format(ids.v7)) %}
+    let v8 = data_start[8]
+    %{ print("{:032b}".format(ids.v8)) %}
+    let v9 = data_start[9]
+    %{ print("{:032b}".format(ids.v9)) %}
+    let v10 = data_start[10]
+    %{ print("{:032b}".format(ids.v10)) %}
+    let v11 = data_start[11]
+    %{ print("{:032b}".format(ids.v11)) %}
+    let v12 = data_start[12]
+    %{ print("{:032b}".format(ids.v12)) %}
+    let v13 = data_start[13]
+    %{ print("{:032b}".format(ids.v13)) %}
+    let v14 = data_start[14]
+    %{ print("{:032b}".format(ids.v14)) %}
+    let v15 = data_start[15]
+    %{ print("{:032b}".format(ids.v15)) %}
+
+    let sha256_start = data_start
+    let output = sha256_ptr
+    let working_vars = sha256_ptr - SHA256_STATE_SIZE_FELTS
+    %{
+        from starkware.cairo.common.cairo_sha256.sha256_utils import (
+            IV, compute_message_schedule, sha2_compress_function)
+
+        _sha256_input_chunk_size_felts = int(ids.SHA256_INPUT_CHUNK_SIZE_FELTS)
+        assert 0 <= _sha256_input_chunk_size_felts < 100
+
+        w = compute_message_schedule(memory.get_range(
+            ids.sha256_start, _sha256_input_chunk_size_felts))
+        new_state = sha2_compress_function(IV, w)
+        segments.write_arg(ids.output, new_state)
+    %}
+    %{ print("hash") %}
+    let v0 = sha256_ptr[0]
+    %{ print("{:032b}".format(ids.v0)) %}
+    let v1 = sha256_ptr[1]
+    %{ print("{:032b}".format(ids.v1)) %}
+    let v2 = sha256_ptr[2]
+    %{ print("{:032b}".format(ids.v2)) %}
+    let v3 = sha256_ptr[3]
+    %{ print("{:032b}".format(ids.v3)) %}
+    let v4 = sha256_ptr[4]
+    %{ print("{:032b}".format(ids.v4)) %}
+    let v5 = sha256_ptr[5]
+    %{ print("{:032b}".format(ids.v5)) %}
+    let v6 = sha256_ptr[6]
+    %{ print("{:032b}".format(ids.v6)) %}
+    let v7 = sha256_ptr[7]
+    %{ print("{:032b}".format(ids.v7)) %}
+
+    let sha256_ptr = sha256_ptr + SHA256_STATE_SIZE_FELTS
+
     return ()
 end
 
