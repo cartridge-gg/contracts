@@ -203,10 +203,12 @@ func render{range_check_ptr}(dict : DictAccess*, cell_list : Cell*, svg_str : st
 
     let cell : Cell* = cell_list + (Cell.SIZE * dict.key)
 
+    local fill
+
     if dict.prev_value == 0:
-        tempvar fill = '#000'
+        fill = '#000'
     else:
-        tempvar fill = '#fff'
+        fill = '#fff'
     end
 
     let (wh_fp2) = numfp2_from_felt(30)
@@ -215,8 +217,6 @@ func render{range_check_ptr}(dict : DictAccess*, cell_list : Cell*, svg_str : st
 
     let x1_offset = 30 * cell.col
     let (x1_fp2) = numfp2_from_felt(x1_offset)
-
-    tempvar fill = fill
 
     let svg_rect_left = SvgRect(x=x1_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
     let (rect_str : string) = str_from_svg_rect(svg_rect_left)

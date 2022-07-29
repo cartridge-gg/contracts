@@ -135,27 +135,27 @@ namespace Controller:
             let (high, low) = split_felt(hash)
 
             # Extract words
-            let (b0) = bitwise_and(low, 4294967295)
+            let (b0) = bitwise_and(low, 2 ** 32 - 1)
 
-            let (q1, r1) = unsigned_div_rem(low, 4294967296)
-            let (b1) = bitwise_and(q1, 4294967295)
+            let (q1, r1) = unsigned_div_rem(low, 2 ** 32)
+            let (b1) = bitwise_and(q1, 2 ** 32 - 1)
 
-            let (q2, r2) = unsigned_div_rem(q1, 4294967296)
-            let (b2) = bitwise_and(q2, 4294967295)
+            let (q2, r2) = unsigned_div_rem(q1, 2 ** 32)
+            let (b2) = bitwise_and(q2, 2 ** 32 - 1)
 
-            let (q3, r3) = unsigned_div_rem(q2, 4294967296)
-            let (b3) = bitwise_and(q3, 4294967295)
+            let (q3, r3) = unsigned_div_rem(q2, 2 ** 32)
+            let (b3) = bitwise_and(q3, 2 ** 32 - 1)
 
-            let (b4) = bitwise_and(high, 4294967295)
+            let (b4) = bitwise_and(high, 2 ** 32 - 1)
 
-            let (q5, r5) = unsigned_div_rem(high, 4294967296)
-            let (b5) = bitwise_and(q5, 4294967295)
+            let (q5, r5) = unsigned_div_rem(high, 2 ** 32)
+            let (b5) = bitwise_and(q5, 2 ** 32 - 1)
 
-            let (q6, r6) = unsigned_div_rem(q5, 4294967296)
-            let (b6) = bitwise_and(q6, 4294967295)
+            let (q6, r6) = unsigned_div_rem(q5, 2 ** 32)
+            let (b6) = bitwise_and(q6, 2 ** 32 - 1)
 
-            let (q7, r7) = unsigned_div_rem(q6, 4294967296)
-            let (b7) = bitwise_and(q7, 4294967295)
+            let (q7, r7) = unsigned_div_rem(q6, 2 ** 32)
+            let (b7) = bitwise_and(q7, 2 ** 32 - 1)
 
             assert [input + 0] = b7
             assert [input + 1] = b6
