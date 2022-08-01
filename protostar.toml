@@ -6,7 +6,7 @@ libs_path = "lib"
 
 ["protostar.contracts"]
 main = [
-    "./src/character.cairo",
+    "./src/tokens/Avatar/Avatar.cairo",
 ]
 
 ["protostar.shared_command_configs"]

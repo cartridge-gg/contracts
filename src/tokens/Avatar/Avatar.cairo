@@ -4,13 +4,14 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.registers import get_label_location
 
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.introspection.ERC165 import ERC165
 from openzeppelin.security.pausable import Pausable
 from openzeppelin.access.ownable import Ownable
 
-from src.tokens.Avatar.library import generate_character, return_svg_header
+from src.tokens.Avatar.library import create_tokenURI
 from src.util.str import string, str_concat, str_from_literal
 
 #
@@ -86,7 +87,7 @@ end
 func tokenURI{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     tokenId : Uint256
 ) -> (tokenURI_len : felt, tokenURI : felt*):
-    let (svg) = generate_character(seed=tokenId.low)
+    let (svg) = create_tokenURI(seed=tokenId.low)
     return (tokenURI_len=svg.arr_len, tokenURI=svg.arr)
 end
 
