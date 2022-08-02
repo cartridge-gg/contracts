@@ -10,6 +10,7 @@ from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.registers import get_label_location
 
 from src.util.str import string, literal_from_number, str_from_literal, str_concat
 
@@ -51,12 +52,12 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     let (h_literal : felt) = literal_from_number(h)
 
     let (arr) = alloc()
-    assert arr[0] = '<svg width="'
+    assert arr[0] = '<svg width=\"'
     assert arr[1] = w_literal
-    assert arr[2] = '" height="'
+    assert arr[2] = '\" height=\"'
     assert arr[3] = h_literal
-    assert arr[4] = '" xmlns="http://www.w3.org/'
-    assert arr[5] = '2000/svg">'
+    assert arr[4] = '\" xmlns=\"http://www.w3.org/'
+    assert arr[5] = '2000/svg\">'
 
     return (string(6, arr))
 end
@@ -78,17 +79,17 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     let (h_literal) = literal_from_number(h_rounded)
 
     let (arr) = alloc()
-    assert arr[0] = '<rect x="'
+    assert arr[0] = '<rect x=\"'
     assert arr[1] = x_literal
-    assert arr[2] = '" y="'
+    assert arr[2] = '\" y=\"'
     assert arr[3] = y_literal
-    assert arr[4] = '" width="'
+    assert arr[4] = '\" width=\"'
     assert arr[5] = w_literal
-    assert arr[6] = '" height="'
+    assert arr[6] = '\" height=\"'
     assert arr[7] = h_literal
-    assert arr[8] = '" fill="'
+    assert arr[8] = '\" fill=\"'
     assert arr[9] = svg_rect.fill
-    assert arr[10] = '" />'
+    assert arr[10] = '\" />'
 
     return (string(11, arr))
 end
@@ -286,8 +287,6 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (sv
     let (local dict_start : DictAccess*) = alloc()
     let (local squashed_dict : DictAccess*) = alloc()
 
-    assert_not_zero(seed)
-
     let (dict_end) = init_cell_list(
         cell_list=cast(&grid_tuple, Cell*), seed=seed, n_steps=32, dict=dict_start
     )
@@ -307,4 +306,56 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (sv
     let (close_str : string) = str_from_literal('</svg>')
     let (svg_str) = str_concat(render_str, close_str)
     return (svg_str)
+end
+
+
+
+func create_tokenURI{
+    syscall_ptr : felt*, 
+    range_check_ptr}(seed: felt
+) -> (
+    json_str: string):
+    alloc_locals
+
+    assert_not_zero(seed)
+ 
+    let (svg_str) = generate_character(seed)
+
+    let (data_prefix_label) = get_label_location(dw_prefix)
+    tempvar data_prefix = string(1, cast(data_prefix_label, felt*))
+
+    let (data_xml_header_label) = get_label_location(dw_xml_header)
+    tempvar data_xml_header = string(2, cast(data_xml_header_label, felt*))
+
+    let (data_content_label) = get_label_location(dw_content)
+    tempvar data_content = string(6, cast(data_content_label, felt*))
+
+    let (data_end_label) = get_label_location(dw_end)
+    tempvar data_end = string(1, cast(data_end_label, felt*))
+
+    let (result) = str_concat(data_prefix, data_content)
+    let (result) = str_concat(string(result.arr_len, result.arr), data_xml_header)
+    let (result) = str_concat(string(result.arr_len, result.arr), svg_str)
+    let (result) = str_concat(string(result.arr_len, result.arr), data_end)
+
+    return (result)
+
+    dw_prefix:
+    dw 'data:application/json,'
+
+    dw_content:
+    dw '{"name":"Cartridge '
+    dw 'Profile Avatar",'
+    dw '"description":"A '
+    dw 'progressive Avatar NFT",'
+    dw '"image":'
+    dw '"data:image/svg+xml,'
+
+    dw_xml_header:
+    dw '<?xml version=\"1.0\"'
+    dw ' encoding=\"UTF-8\"?>'
+
+    dw_end:
+    dw '"}'
+
 end
