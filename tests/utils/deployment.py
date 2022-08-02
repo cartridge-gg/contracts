@@ -3,8 +3,8 @@ from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.compiler.compile import compile_starknet_files
 
 CAIRO_PATH = [
-    "lib/common_ec_cairo",
-    "lib/common_ec_cairo/ec",
+    "lib",
+    "lib/cairo_p256",
     "lib/cairo_contracts/src",
     "lib/argent_contracts_starknet"]
 

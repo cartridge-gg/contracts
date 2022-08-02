@@ -14,9 +14,9 @@ from starkware.cairo.common.serialize import serialize_word
 
 from src.account.IPlugin import IPlugin
 from src.util.sha256 import finalize_sha256, sha256
-from src.util.ec import EcPoint
-from src.util.bigint import BigInt3
-from src.util.ecdsa import verify_ecdsa
+from src.ec import EcPoint
+from src.bigint import BigInt3
+from src.ecdsa import verify_ecdsa
 
 #
 # Storage

@@ -6,3 +6,6 @@
 	url = https://github.com/argentlabs/argent-contracts-starknet
 	path = lib/argent_contracts_starknet
 	branch = refs/heads/v0.2.2
+[submodule "cairo_p256"]
+	url = https://github.com/cartridge-gg/cairo-p256
+	path = lib/cairo_p256
