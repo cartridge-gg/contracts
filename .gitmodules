@@ -6,3 +6,6 @@
 	url = https://github.com/argentlabs/argent-contracts-starknet
 	path = lib/argent_contracts_starknet
 	branch = refs/heads/v0.2.2
+[submodule "cairo-contracts"]
+	path = cairo-contracts
+	url = git@github.com:OpenZeppelin/cairo-contracts.git
