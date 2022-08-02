@@ -13,7 +13,7 @@ from starkware.starknet.common.syscalls import (
 )
 from starkware.cairo.common.bool import (TRUE, FALSE)
 
-from openzeppelin.security.initializable.library import Initializable
+from openzeppelin.security.initializable import Initializable
 
 from src.Upgradable import _set_implementation
 
