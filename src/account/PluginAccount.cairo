@@ -193,7 +193,8 @@ func deploy_contract{
         class_hash=class_hash,
         contract_address_salt=contract_address_salt,
         constructor_calldata_size=constructor_calldata_len,
-        constructor_calldata=constructor_calldata
+        constructor_calldata=constructor_calldata,
+	deploy_from_zero=0,
     )
     contract_deployed.emit(contract_address=contract_address, class_hash=class_hash, salt=contract_address_salt)
     return (contract_address=contract_address)
