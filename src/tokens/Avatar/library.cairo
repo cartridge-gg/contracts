@@ -342,7 +342,6 @@ func create_tokenURI{
 
     dw_prefix:
     dw 'data:application/json,'
-    # dw 'data:application/json;base64,'
 
     dw_content:
     dw '{"name":"Cartridge '
