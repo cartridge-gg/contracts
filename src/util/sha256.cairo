@@ -1,280 +1,394 @@
-from src.util.packed_sha256 import BLOCK_SIZE, compute_message_schedule, sha2_compress, get_round_constants
+%lang starknet
+
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.registers import get_label_location
+from starkware.cairo.common.bool import TRUE, FALSE
+from starkware.cairo.common.math import unsigned_div_rem
+from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.memcpy import memcpy
+from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
-from starkware.cairo.common.memset import memset
-from starkware.cairo.common.pow import pow
+from src.util.bits import Bits
 
-const SHA256_INPUT_CHUNK_SIZE_FELTS = 16
-const SHA256_STATE_SIZE_FELTS = 8
-# Each instance consists of 16 words of message, 8 words for the input state and 8 words
-# for the output state.
-const SHA256_INSTANCE_SIZE = SHA256_INPUT_CHUNK_SIZE_FELTS + 2 * SHA256_STATE_SIZE_FELTS
-
-# Computes SHA256 of 'input'. Inputs of up to 55 bytes are supported.
-# To use this function, split the input into (up to) 14 words of 32 bits (big endian).
-# For example, to compute sha256('Hello world'), use:
-#   input = [1214606444, 1864398703, 1919706112]
-# where:
-#   1214606444 == int.from_bytes(b'Hell', 'big')
-#   1864398703 == int.from_bytes(b'o wo', 'big')
-#   1919706112 == int.from_bytes(b'rld\x00', 'big')  # Note the '\x00' padding.
-#
-# output is an array of 8 32-bit words (big endian).
-#
-# Assumption: n_bytes <= 55.
-#
-# Note: You must call finalize_sha2() at the end of the program. Otherwise, this function
-# is not sound and a malicious prover may return a wrong result.
-# Note: the interface of this function may change in the future.
-func sha256{range_check_ptr, sha256_ptr : felt*}(input : felt*, n_bytes : felt) -> (output : felt*):
-    assert_nn_le(n_bytes, 55)
-    let sha256_start = sha256_ptr
-    _sha256_input(input=input, n_bytes=n_bytes, n_words=SHA256_INPUT_CHUNK_SIZE_FELTS - 2)
-    assert sha256_ptr[0] = 0
-    assert sha256_ptr[1] = n_bytes * 8
-    let sha256_ptr = sha256_ptr + 2
-
-    # Set the initial state to IV.
-    assert sha256_ptr[0] = 0x6A09E667
-    assert sha256_ptr[1] = 0xBB67AE85
-    assert sha256_ptr[2] = 0x3C6EF372
-    assert sha256_ptr[3] = 0xA54FF53A
-    assert sha256_ptr[4] = 0x510E527F
-    assert sha256_ptr[5] = 0x9B05688C
-    assert sha256_ptr[6] = 0x1F83D9AB
-    assert sha256_ptr[7] = 0x5BE0CD19
-    let sha256_ptr = sha256_ptr + SHA256_STATE_SIZE_FELTS
-
-    let output = sha256_ptr
-    %{
-        from starkware.cairo.common.cairo_sha256.sha256_utils import (
-            IV, compute_message_schedule, sha2_compress_function)
-
-        _sha256_input_chunk_size_felts = int(ids.SHA256_INPUT_CHUNK_SIZE_FELTS)
-        assert 0 <= _sha256_input_chunk_size_felts < 100
-
-        w = compute_message_schedule(memory.get_range(
-            ids.sha256_start, _sha256_input_chunk_size_felts))
-        new_state = sha2_compress_function(IV, w)
-        segments.write_arg(ids.output, new_state)
-    %}
-    let sha256_ptr = sha256_ptr + SHA256_STATE_SIZE_FELTS
-    return (output)
-end
-
-func _sha256_input{range_check_ptr, sha256_ptr : felt*}(
-        input : felt*, n_bytes : felt, n_words : felt):
-    alloc_locals
-
-    local full_word
-    %{ ids.full_word = int(ids.n_bytes >= 4) %}
-
-    if full_word != 0:
-        assert sha256_ptr[0] = input[0]
-        let sha256_ptr = sha256_ptr + 1
-        return _sha256_input(input=input + 1, n_bytes=n_bytes - 4, n_words=n_words - 1)
-    end
-
-    # This is the last input word, so we should add a byte '0x80' at the end and fill the rest with
-    # zeros.
-
-    if n_bytes == 0:
-        assert sha256_ptr[0] = 0x80000000
-        memset(dst=sha256_ptr + 1, value=0, n=n_words - 1)
-        let sha256_ptr = sha256_ptr + n_words
-        return ()
-    end
-
-    assert_nn_le(n_bytes, 3)
-    let (padding) = pow(256, 3 - n_bytes)
-    local range_check_ptr = range_check_ptr
-
-    assert sha256_ptr[0] = input[0] + padding * 0x80
-
-    memset(dst=sha256_ptr + 1, value=0, n=n_words - 1)
-    let sha256_ptr = sha256_ptr + n_words
-    return ()
-end
-
-# Handles n blocks of BLOCK_SIZE SHA256 instances.
-func _finalize_sha256_inner{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
-        sha256_ptr : felt*, n : felt, round_constants : felt*):
-    if n == 0:
-        return ()
-    end
+func sha256{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(input : felt*, n_bytes : felt) -> (
+    output : felt*
+):
+    # Computes SHA256 of 'input'. See https://en.wikipedia.org/wiki/SHA-2
+    #
+    # Parameters:
+    #   input: array of 32-bit words
+    #   n_bytes: number of bits to consider from input
+    #
+    # Returns:
+    #   output: an array of 8 32-bit words (big endian).
 
     alloc_locals
 
-    local MAX_VALUE = 2 ** 32 - 1
+    let n_bits = n_bytes * 8
 
-    let sha256_start = sha256_ptr
+    # Initialize hash values
+    let (hash : felt*) = alloc()
+    assert hash[0] = 0x6a09e667
+    assert hash[1] = 0xbb67ae85
+    assert hash[2] = 0x3c6ef372
+    assert hash[3] = 0xa54ff53a
+    assert hash[4] = 0x510e527f
+    assert hash[5] = 0x9b05688c
+    assert hash[6] = 0x1f83d9ab
+    assert hash[7] = 0x5be0cd19
 
-    let (local message_start : felt*) = alloc()
-    let (local input_state_start : felt*) = alloc()
+    # Pre-processing (Padding)
 
-    # Handle message.
+    let (len_chunks : felt, chunks : felt**) = create_chunks(input, n_bits, 0)
 
-    tempvar message = message_start
-    tempvar sha256_ptr = sha256_ptr
-    tempvar range_check_ptr = range_check_ptr
-    tempvar m = SHA256_INPUT_CHUNK_SIZE_FELTS
+    return for_all_chunks(hash, len_chunks, chunks)
+end
 
-    message_loop:
-    tempvar x0 = sha256_ptr[0 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 0] = x0
-    assert [range_check_ptr + 1] = MAX_VALUE - x0
-    tempvar x1 = sha256_ptr[1 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 2] = x1
-    assert [range_check_ptr + 3] = MAX_VALUE - x1
-    tempvar x2 = sha256_ptr[2 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 4] = x2
-    assert [range_check_ptr + 5] = MAX_VALUE - x2
-    tempvar x3 = sha256_ptr[3 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 6] = x3
-    assert [range_check_ptr + 7] = MAX_VALUE - x3
-    tempvar x4 = sha256_ptr[4 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 8] = x4
-    assert [range_check_ptr + 9] = MAX_VALUE - x4
-    tempvar x5 = sha256_ptr[5 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 10] = x5
-    assert [range_check_ptr + 11] = MAX_VALUE - x5
-    tempvar x6 = sha256_ptr[6 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 12] = x6
-    assert [range_check_ptr + 13] = MAX_VALUE - x6
-    assert message[0] = x0 + 2 ** 35 * x1 + 2 ** (35 * 2) * x2 + 2 ** (35 * 3) * x3 +
-        2 ** (35 * 4) * x4 + 2 ** (35 * 5) * x5 + 2 ** (35 * 6) * x6
+func create_chunks{range_check_ptr}(input : felt*, n_bits : felt, bits_prefix : felt) -> (
+    len_chunks : felt, chunks : felt**
+):
+    # Creates an array of chunks of length 512 bits (16 32-bit words) from 'input'.
+    #
+    # Parameters:
+    #   input: array of 32-bit words
+    #   n_bits: length of input
+    #   bits_prefix: number of bits to skip
 
+    alloc_locals
+
+    # if that's the last chunk
+    # we need to append a single bit at 1, zeros and the length as a 64 bit integer
+    # so that's 512-65=447 bits free
+    let len = n_bits - bits_prefix
+
+    # n_bits-bits_prefix <= 511
+    let (test) = is_le(len, 511)
+    if test == TRUE:
+        let (msg : felt*) = alloc()
+        Bits.extract(input, bits_prefix, len, msg)
+
+        # one followed by 31 0
+        let (one : felt*) = alloc()
+        assert [one] = 2147483648
+
+        # we will bind it to get full words
+        let (full_words, _) = unsigned_div_rem(len, 32)
+        let size = (full_words + 1) * 32 - len
+        let (chunk : felt*, new_len : felt) = Bits.merge(msg, len, one, size)
+        let words_len = new_len / 32
+
+        let (test) = is_le(len, 447)
+        # if that's the last chunk
+        # we need to append 447-len '0' and len on 64 bits (2 felt words)
+        # so that's 512-65=447 bits free
+        if test == TRUE:
+            let zero_words = 14 - words_len
+            append_zeros(chunk + words_len, zero_words)
+            # now chunk is 448 bits long = 14 words
+            # todo: support > 32 bits longs size
+            # current maximum size = 2^33-1
+            # = 8589934591 bits ~= 8.6GB
+
+            assert chunk[14] = 0
+            assert chunk[15] = n_bits
+            let (chunks : felt**) = alloc()
+            assert chunks[0] = chunk
+            return (1, chunks)
+        else:
+            # here we can put 0 until the 512 bits and get an empty next chunk
+            let zero_words = 16 - words_len
+            append_zeros(chunk + words_len, zero_words)
+            let (chunks : felt**) = alloc()
+            let (last_chunk) = alloc()
+            assert last_chunk[15] = n_bits
+            assert chunks[0] = last_chunk
+            append_zeros(last_chunk, 15)
+            assert chunks[1] = chunk
+            return (2, chunks)
+        end
+    end
+
+    # if 512 <= n_bits
+    # 512/32 = 16
+    let (len_chunks : felt, chunks : felt**) = create_chunks(input, n_bits, bits_prefix + 512)
+
+    let (chunk : felt*) = alloc()
+    Bits.extract(input, bits_prefix, 512, chunk)
+    assert chunks[len_chunks] = chunk
+
+    return (len_chunks + 1, chunks)
+end
+
+func append_zeros{range_check_ptr}(ptr : felt*, amount : felt):
+    if amount == 0:
+        return ()
+    end
+    assert [ptr] = 0
+    return append_zeros(ptr + 1, amount - 1)
+end
+
+func for_all_chunks{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
+    hash : felt*, chunks_len : felt, chunks : felt**
+) -> (output : felt*):
+    if chunks_len == 0:
+        return (hash)
+    end
+    let chunk : felt* = chunks[chunks_len - 1]
+    let (updated_hash : felt*) = process_chunk(chunk, hash)
+    return for_all_chunks(updated_hash, chunks_len - 1, chunks)
+end
+
+const SHIFTS = 1 + 2 ** 35 + 2 ** (35 * 2) + 2 ** (35 * 3) + 2 ** (35 * 4) + 2 ** (35 * 5) +
+    2 ** (35 * 6)
+
+func process_chunk{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(chunk : felt*, hash : felt*) -> (
+    output : felt*
+):
+    alloc_locals
+    # Extend the first 16 words into a total of 64 words
+    compute_message_schedule(chunk)
+    let (k : felt*) = get_constants()
+    compute_compression(hash, chunk, k, 0)
+
+    let shifted_hash : felt* = hash + 8 * 64
+
+    # additions are mod 2^32
+    let (_, mod32bits) = unsigned_div_rem(hash[0] + shifted_hash[0], 4294967296)
+    assert shifted_hash[8] = mod32bits
+    let (_, mod32bits) = unsigned_div_rem(hash[1] + shifted_hash[1], 4294967296)
+    assert shifted_hash[9] = mod32bits
+    let (_, mod32bits) = unsigned_div_rem(hash[2] + shifted_hash[2], 4294967296)
+    assert shifted_hash[10] = mod32bits
+    let (_, mod32bits) = unsigned_div_rem(hash[3] + shifted_hash[3], 4294967296)
+    assert shifted_hash[11] = mod32bits
+    let (_, mod32bits) = unsigned_div_rem(hash[4] + shifted_hash[4], 4294967296)
+    assert shifted_hash[12] = mod32bits
+    let (_, mod32bits) = unsigned_div_rem(hash[5] + shifted_hash[5], 4294967296)
+    assert shifted_hash[13] = mod32bits
+    let (_, mod32bits) = unsigned_div_rem(hash[6] + shifted_hash[6], 4294967296)
+    assert shifted_hash[14] = mod32bits
+    let (_, mod32bits) = unsigned_div_rem(hash[7] + shifted_hash[7], 4294967296)
+    assert shifted_hash[15] = mod32bits
+
+    return (shifted_hash + 8)
+end
+
+func compute_compression{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
+    hash : felt*, w : felt*, k : felt*, index : felt
+):
+    alloc_locals
+    if index == 64:
+        return ()
+    end
+
+    # s1 := (h4 rightrotate 6) xor (h4 rightrotate 11) xor (h4 rightrotate 25)
+
+    # %{ print("d:", ids.d, "p:", ids.p, "r:", ids.r) %}
+
+    let (p, r) = unsigned_div_rem(hash[4], 2 ** 6)
+    assert bitwise_ptr[0].x = (p + r * 2 ** (32 - 6))
+    let (p, r) = unsigned_div_rem(hash[4], 2 ** 11)
+    assert bitwise_ptr[0].y = (p + r * 2 ** (32 - 11))
+    assert bitwise_ptr[1].x = bitwise_ptr[0].x_xor_y
+    let (p, r) = unsigned_div_rem(hash[4], 2 ** 25)
+    assert bitwise_ptr[1].y = (p + r * 2 ** (32 - 25))
+    let s1 : felt = bitwise_ptr[1].x_xor_y
+
+    # ch := (h4 and h5) xor ((not h4) and h6)
+    assert bitwise_ptr[2].x = hash[4]
+    assert bitwise_ptr[2].y = hash[5]
+    assert bitwise_ptr[3].x = 4294967295 - hash[4]
+    assert bitwise_ptr[3].y = hash[6]
+    assert bitwise_ptr[4].x = bitwise_ptr[2].x_and_y
+    assert bitwise_ptr[4].y = bitwise_ptr[3].x_and_y
+    let ch : felt = bitwise_ptr[4].x_xor_y
+
+    # temp1 := hash[7] + s1 + ch + k[i] + w[i]
+    local temp1 : felt = hash[7] + s1 + ch + k[index] + w[index]
+
+    # s0 := (hash[0] rightrotate 2) xor (hash[0] rightrotate 13) xor (a rightrotate 22)
+    let (p, r) = unsigned_div_rem(hash[0], 2 ** 2)
+    assert bitwise_ptr[5].x = p + r * 2 ** (32 - 2)
+    let (p, r) = unsigned_div_rem(hash[0], 2 ** 13)
+    assert bitwise_ptr[5].y = p + r * 2 ** (32 - 13)
+    assert bitwise_ptr[6].x = bitwise_ptr[5].x_xor_y
+    let (p, r) = unsigned_div_rem(hash[0], 2 ** 22)
+    assert bitwise_ptr[6].y = p + r * 2 ** (32 - 22)
+    let s0 : felt = bitwise_ptr[6].x_xor_y
+
+    # maj := (hash[0] and hash[1]) xor (hash[0] and hash[2]) xor (hash[1] and hash[2])
+    assert bitwise_ptr[7].x = hash[0]
+    assert bitwise_ptr[7].y = hash[1]
+    let a = bitwise_ptr[7].x_and_y
+    assert bitwise_ptr[8].x = hash[0]
+    assert bitwise_ptr[8].y = hash[2]
+    let b = bitwise_ptr[8].x_and_y
+    assert bitwise_ptr[9].x = hash[1]
+    assert bitwise_ptr[9].y = hash[2]
+    let c = bitwise_ptr[9].x_and_y
+    assert bitwise_ptr[10].x = a
+    assert bitwise_ptr[10].y = b
+    let a = bitwise_ptr[10].x_xor_y
+    assert bitwise_ptr[11].x = a
+    assert bitwise_ptr[11].y = c
+    let maj : felt = bitwise_ptr[11].x_xor_y
+
+    # additions are mod 2^32
+    let (_, mod32bits) = unsigned_div_rem(temp1 + s0 + maj, 4294967296)
+    assert hash[8] = mod32bits
+    assert hash[9] = hash[0]
+    assert hash[10] = hash[1]
+    assert hash[11] = hash[2]
+    let (_, mod32bits) = unsigned_div_rem(hash[3] + temp1, 4294967296)
+    assert hash[12] = mod32bits
+    assert hash[13] = hash[4]
+    assert hash[14] = hash[5]
+    assert hash[15] = hash[6]
+
+    local bitwise_ptr : BitwiseBuiltin* = bitwise_ptr + 12 * BitwiseBuiltin.SIZE
+    return compute_compression(hash + 8, w, k, index + 1)
+end
+
+func compute_message_schedule{bitwise_ptr : BitwiseBuiltin*}(message : felt*):
+    # Code from Lior's implementation
+    # Given an array of size 16, extends it to the message schedule array (of size 64) by writing
+    # 48 more values.
+    # Each element represents 7 32-bit words from 7 difference instances, starting at bits
+    # 0, 35, 35 * 2, ..., 35 * 6.
+
+    alloc_locals
+
+    # Defining the following constants as local variables saves some instructions.
+    local shift_mask3 = SHIFTS * (2 ** 32 - 2 ** 3)
+    local shift_mask7 = SHIFTS * (2 ** 32 - 2 ** 7)
+    local shift_mask10 = SHIFTS * (2 ** 32 - 2 ** 10)
+    local shift_mask17 = SHIFTS * (2 ** 32 - 2 ** 17)
+    local shift_mask18 = SHIFTS * (2 ** 32 - 2 ** 18)
+    local shift_mask19 = SHIFTS * (2 ** 32 - 2 ** 19)
+    local mask32ones = SHIFTS * (2 ** 32 - 1)
+
+    # Loop variables.
+    tempvar bitwise_ptr = bitwise_ptr
+    tempvar message = message + 16
+    tempvar n = 64 - 16
+
+    loop:
+    # Compute s0 = right_rot(w[i - 15], 7) ^ right_rot(w[i - 15], 18) ^ (w[i - 15] >> 3).
+    tempvar w0 = message[-15]
+    assert bitwise_ptr[0].x = w0
+    assert bitwise_ptr[0].y = shift_mask7
+    let w0_rot7 = (2 ** (32 - 7)) * w0 + (1 / 2 ** 7 - 2 ** (32 - 7)) * bitwise_ptr[0].x_and_y
+    assert bitwise_ptr[1].x = w0
+    assert bitwise_ptr[1].y = shift_mask18
+    let w0_rot18 = (2 ** (32 - 18)) * w0 + (1 / 2 ** 18 - 2 ** (32 - 18)) * bitwise_ptr[1].x_and_y
+    assert bitwise_ptr[2].x = w0
+    assert bitwise_ptr[2].y = shift_mask3
+    let w0_shift3 = (1 / 2 ** 3) * bitwise_ptr[2].x_and_y
+    assert bitwise_ptr[3].x = w0_rot7
+    assert bitwise_ptr[3].y = w0_rot18
+    assert bitwise_ptr[4].x = bitwise_ptr[3].x_xor_y
+    assert bitwise_ptr[4].y = w0_shift3
+    let s0 = bitwise_ptr[4].x_xor_y
+    let bitwise_ptr = bitwise_ptr + 5 * BitwiseBuiltin.SIZE
+
+    # Compute s1 = right_rot(w[i - 2], 17) ^ right_rot(w[i - 2], 19) ^ (w[i - 2] >> 10).
+    tempvar w1 = message[-2]
+    assert bitwise_ptr[0].x = w1
+    assert bitwise_ptr[0].y = shift_mask17
+    let w1_rot17 = (2 ** (32 - 17)) * w1 + (1 / 2 ** 17 - 2 ** (32 - 17)) * bitwise_ptr[0].x_and_y
+    assert bitwise_ptr[1].x = w1
+    assert bitwise_ptr[1].y = shift_mask19
+    let w1_rot19 = (2 ** (32 - 19)) * w1 + (1 / 2 ** 19 - 2 ** (32 - 19)) * bitwise_ptr[1].x_and_y
+    assert bitwise_ptr[2].x = w1
+    assert bitwise_ptr[2].y = shift_mask10
+    let w1_shift10 = (1 / 2 ** 10) * bitwise_ptr[2].x_and_y
+    assert bitwise_ptr[3].x = w1_rot17
+    assert bitwise_ptr[3].y = w1_rot19
+    assert bitwise_ptr[4].x = bitwise_ptr[3].x_xor_y
+    assert bitwise_ptr[4].y = w1_shift10
+    let s1 = bitwise_ptr[4].x_xor_y
+    let bitwise_ptr = bitwise_ptr + 5 * BitwiseBuiltin.SIZE
+
+    assert bitwise_ptr[0].x = message[-16] + s0 + message[-7] + s1
+    assert bitwise_ptr[0].y = mask32ones
+    assert message[0] = bitwise_ptr[0].x_and_y
+    let bitwise_ptr = bitwise_ptr + BitwiseBuiltin.SIZE
+
+    tempvar bitwise_ptr = bitwise_ptr
     tempvar message = message + 1
-    tempvar sha256_ptr = sha256_ptr + 1
-    tempvar range_check_ptr = range_check_ptr + 14
-    tempvar m = m - 1
-    jmp message_loop if m != 0
+    tempvar n = n - 1
+    jmp loop if n != 0
 
-    # Handle input state.
-
-    tempvar input_state = input_state_start
-    tempvar sha256_ptr = sha256_ptr
-    tempvar range_check_ptr = range_check_ptr
-    tempvar m = SHA256_STATE_SIZE_FELTS
-
-    input_state_loop:
-    tempvar x0 = sha256_ptr[0 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 0] = x0
-    assert [range_check_ptr + 1] = MAX_VALUE - x0
-    tempvar x1 = sha256_ptr[1 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 2] = x1
-    assert [range_check_ptr + 3] = MAX_VALUE - x1
-    tempvar x2 = sha256_ptr[2 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 4] = x2
-    assert [range_check_ptr + 5] = MAX_VALUE - x2
-    tempvar x3 = sha256_ptr[3 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 6] = x3
-    assert [range_check_ptr + 7] = MAX_VALUE - x3
-    tempvar x4 = sha256_ptr[4 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 8] = x4
-    assert [range_check_ptr + 9] = MAX_VALUE - x4
-    tempvar x5 = sha256_ptr[5 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 10] = x5
-    assert [range_check_ptr + 11] = MAX_VALUE - x5
-    tempvar x6 = sha256_ptr[6 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 12] = x6
-    assert [range_check_ptr + 13] = MAX_VALUE - x6
-    assert input_state[0] = x0 + 2 ** 35 * x1 + 2 ** (35 * 2) * x2 + 2 ** (35 * 3) * x3 +
-        2 ** (35 * 4) * x4 + 2 ** (35 * 5) * x5 + 2 ** (35 * 6) * x6
-
-    tempvar input_state = input_state + 1
-    tempvar sha256_ptr = sha256_ptr + 1
-    tempvar range_check_ptr = range_check_ptr + 14
-    tempvar m = m - 1
-    jmp input_state_loop if m != 0
-
-    # Run sha256 on the 7 instances.
-
-    local sha256_ptr : felt* = sha256_ptr
-    local range_check_ptr = range_check_ptr
-    compute_message_schedule(message_start)
-    let (outputs) = sha2_compress(input_state_start, message_start, round_constants)
-    local bitwise_ptr : BitwiseBuiltin* = bitwise_ptr
-
-    # Handle outputs.
-
-    tempvar outputs = outputs
-    tempvar sha256_ptr = sha256_ptr
-    tempvar range_check_ptr = range_check_ptr
-    tempvar m = SHA256_STATE_SIZE_FELTS
-
-    output_loop:
-    tempvar x0 = sha256_ptr[0 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr] = x0
-    assert [range_check_ptr + 1] = MAX_VALUE - x0
-    tempvar x1 = sha256_ptr[1 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 2] = x1
-    assert [range_check_ptr + 3] = MAX_VALUE - x1
-    tempvar x2 = sha256_ptr[2 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 4] = x2
-    assert [range_check_ptr + 5] = MAX_VALUE - x2
-    tempvar x3 = sha256_ptr[3 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 6] = x3
-    assert [range_check_ptr + 7] = MAX_VALUE - x3
-    tempvar x4 = sha256_ptr[4 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 8] = x4
-    assert [range_check_ptr + 9] = MAX_VALUE - x4
-    tempvar x5 = sha256_ptr[5 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 10] = x5
-    assert [range_check_ptr + 11] = MAX_VALUE - x5
-    tempvar x6 = sha256_ptr[6 * SHA256_INSTANCE_SIZE]
-    assert [range_check_ptr + 12] = x6
-    assert [range_check_ptr + 13] = MAX_VALUE - x6
-    assert outputs[0] = x0 + 2 ** 35 * x1 + 2 ** (35 * 2) * x2 + 2 ** (35 * 3) * x3 +
-        2 ** (35 * 4) * x4 + 2 ** (35 * 5) * x5 + 2 ** (35 * 6) * x6
-
-    tempvar outputs = outputs + 1
-    tempvar sha256_ptr = sha256_ptr + 1
-    tempvar range_check_ptr = range_check_ptr + 14
-    tempvar m = m - 1
-    jmp output_loop if m != 0
-
-    return _finalize_sha256_inner(
-        sha256_ptr=sha256_start + SHA256_INSTANCE_SIZE * BLOCK_SIZE,
-        n=n - 1,
-        round_constants=round_constants)
+    return ()
 end
 
-# Verifies that the results of sha256() are valid.
-func finalize_sha256{range_check_ptr, bitwise_ptr : BitwiseBuiltin*}(
-        sha256_ptr_start : felt*, sha256_ptr_end : felt*):
-    alloc_locals
+func get_constants() -> (data : felt*):
+    let (data_address) = get_label_location(data_start)
+    return (data=cast(data_address, felt*))
 
-    let (__fp__, _) = get_fp_and_pc()
-
-    let (round_constants) = get_round_constants()
-
-    tempvar n = (sha256_ptr_end - sha256_ptr_start) / SHA256_INSTANCE_SIZE
-    if n == 0:
-        return ()
-    end
-
-    %{
-        # Add dummy pairs of input and output.
-        from starkware.cairo.common.cairo_sha256.sha256_utils import (
-            IV, compute_message_schedule, sha2_compress_function)
-
-        _block_size = int(ids.BLOCK_SIZE)
-        assert 0 <= _block_size < 20
-        _sha256_input_chunk_size_felts = int(ids.SHA256_INPUT_CHUNK_SIZE_FELTS)
-        assert 0 <= _sha256_input_chunk_size_felts < 100
-
-        message = [0] * _sha256_input_chunk_size_felts
-        w = compute_message_schedule(message)
-        output = sha2_compress_function(IV, w)
-        padding = (message + IV + output) * (_block_size - 1)
-        segments.write_arg(ids.sha256_ptr_end, padding)
-    %}
-
-    # Compute the amount of blocks (rounded up).
-    let (local q, r) = unsigned_div_rem(n + BLOCK_SIZE - 1, BLOCK_SIZE)
-    _finalize_sha256_inner(sha256_ptr_start, n=q, round_constants=round_constants)
-    return ()
+    data_start:
+    dw 0x428a2f98
+    dw 0x71374491
+    dw 0xb5c0fbcf
+    dw 0xe9b5dba5
+    dw 0x3956c25b
+    dw 0x59f111f1
+    dw 0x923f82a4
+    dw 0xab1c5ed5
+    dw 0xd807aa98
+    dw 0x12835b01
+    dw 0x243185be
+    dw 0x550c7dc3
+    dw 0x72be5d74
+    dw 0x80deb1fe
+    dw 0x9bdc06a7
+    dw 0xc19bf174
+    dw 0xe49b69c1
+    dw 0xefbe4786
+    dw 0x0fc19dc6
+    dw 0x240ca1cc
+    dw 0x2de92c6f
+    dw 0x4a7484aa
+    dw 0x5cb0a9dc
+    dw 0x76f988da
+    dw 0x983e5152
+    dw 0xa831c66d
+    dw 0xb00327c8
+    dw 0xbf597fc7
+    dw 0xc6e00bf3
+    dw 0xd5a79147
+    dw 0x06ca6351
+    dw 0x14292967
+    dw 0x27b70a85
+    dw 0x2e1b2138
+    dw 0x4d2c6dfc
+    dw 0x53380d13
+    dw 0x650a7354
+    dw 0x766a0abb
+    dw 0x81c2c92e
+    dw 0x92722c85
+    dw 0xa2bfe8a1
+    dw 0xa81a664b
+    dw 0xc24b8b70
+    dw 0xc76c51a3
+    dw 0xd192e819
+    dw 0xd6990624
+    dw 0xf40e3585
+    dw 0x106aa070
+    dw 0x19a4c116
+    dw 0x1e376c08
+    dw 0x2748774c
+    dw 0x34b0bcb5
+    dw 0x391c0cb3
+    dw 0x4ed8aa4a
+    dw 0x5b9cca4f
+    dw 0x682e6ff3
+    dw 0x748f82ee
+    dw 0x78a5636f
+    dw 0x84c87814
+    dw 0x8cc70208
+    dw 0x90befffa
+    dw 0xa4506ceb
+    dw 0xbef9a3f7
+    dw 0xc67178f2
 end

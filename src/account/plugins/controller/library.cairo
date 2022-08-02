@@ -13,7 +13,8 @@ from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.serialize import serialize_word
 
 from src.account.IPlugin import IPlugin
-from src.util.sha256 import finalize_sha256, sha256
+from src.util.sha256 import sha256
+# from src.util.sha256 import finalize_sha256, sha256
 from src.ec import EcPoint
 from src.bigint import BigInt3
 from src.ecdsa import verify_ecdsa
@@ -127,9 +128,6 @@ namespace Controller:
             let sig_r0 = BigInt3(signature[1], signature[2], signature[3])
             let sig_s0 = BigInt3(signature[4], signature[5], signature[6])
 
-            let (local sha256_ptr_start : felt*) = alloc()
-            let sha256_ptr = sha256_ptr_start
-
             let (local input: felt*) = alloc()
 
             let (high, low) = split_felt(hash)
@@ -166,8 +164,13 @@ namespace Controller:
             assert [input + 6] = b1
             assert [input + 7] = b0
 
-            let (output: felt*) = sha256{sha256_ptr=sha256_ptr}(input, 32)
-            finalize_sha256(sha256_ptr, sha256_ptr)
+            let (output: felt*) = sha256(input, 32)
+
+            # We're doing using the sphinx cairo sha256 implementation until the cario hints support more efficient sha256
+            # let (local sha256_ptr_start : felt*) = alloc()
+            # let sha256_ptr = sha256_ptr_start
+            # let (output: felt*) = sha256{sha256_ptr=sha256_ptr}(input, 32)
+            # finalize_sha256(sha256_ptr, sha256_ptr)
 
             # Construct 86bit hash limbs
             let (h02) = bitwise_and(output[5], 4194303)
