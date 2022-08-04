@@ -344,10 +344,13 @@ func create_tokenURI{
     dw 'data:application/json,'
 
     dw_content:
-    dw '{"name":"Cartridge '
-    dw 'Profile Avatar",'
-    dw '"description":"A '
-    dw 'progressive Avatar NFT",'
+    # TODO: official name and description
+    # dw '{"name":"Cartridge '
+    # dw 'Profile Avatar",'
+    # dw '"description":"A '
+    # dw 'progressive Avatar NFT",'
+    dw '{"name":"test",'
+    dw '"description":"test",'
     dw '"image":'
     dw '"data:image/svg+xml,'
 
