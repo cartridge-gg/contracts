@@ -4,7 +4,8 @@ from starkware.starknet.compiler.compile import compile_starknet_files
 
 CAIRO_PATH = [
     "lib",
-    "lib/cairo_p256",
+    "lib/cairo_webauthn",
+    "lib/cairo_webauthn/lib/cairo_p256",
     "lib/cairo_contracts/src",
     "lib/argent_contracts_starknet"]
 

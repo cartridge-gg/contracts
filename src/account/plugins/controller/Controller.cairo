@@ -5,10 +5,10 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
 from starkware.starknet.common.syscalls import get_tx_info, get_contract_address
 from starkware.cairo.common.alloc import alloc
-
-from openzeppelin.security.initializable import Initializable
-from src.account.plugins.controller.library import Controller
 from starkware.cairo.common.bool import (TRUE, FALSE)
+
+from openzeppelin.security.initializable.library import Initializable
+from src.account.plugins.controller.library import Controller
 
 from src.ec import EcPoint
 
