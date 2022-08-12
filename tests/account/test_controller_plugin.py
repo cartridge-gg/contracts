@@ -49,18 +49,18 @@ async def test_add_public_key(account_factory):
     assert (await webauthn_signer.send_transactions(account, [(account.contract_address, 'is_public_key', [0])])).result[0] == 1
 
 
-# @pytest.mark.asyncio
-# async def test_add_remove_public_key(account_factory):
-#     account, _, _, _ = account_factory
+@pytest.mark.asyncio
+async def test_add_remove_public_key(account_factory):
+    account, _, _, _ = account_factory
 
-#     tx = await stark_signer.send_transactions(account, [(account.contract_address, 'add_public_key', [0])])
-#     assert (await stark_signer.send_transactions(account, [(account.contract_address, 'is_public_key', [0])])).result[0] == 1
+    tx = await stark_signer.send_transactions(account, [(account.contract_address, 'add_public_key', [0])])
+    assert (await stark_signer.send_transactions(account, [(account.contract_address, 'is_public_key', [0])])).result[0] == 1
 
-#     tx = await stark_signer.send_transactions(account, [(account.contract_address, 'remove_public_key', [0])])
-#     assert (await stark_signer.send_transactions(account, [(account.contract_address, 'is_public_key', [0])])).result[0] == 0
+    tx = await stark_signer.send_transactions(account, [(account.contract_address, 'remove_public_key', [0])])
+    assert (await stark_signer.send_transactions(account, [(account.contract_address, 'is_public_key', [0])])).result[0] == 0
 
-#     try:
-#         tx = await stark_signer.send_transactions(account, [(account.contract_address, 'remove_public_key', [1])])
-#         raise Exception("should have been reverted. invalid public key")
-#     except:
-#         pass
+    try:
+        tx = await stark_signer.send_transactions(account, [(account.contract_address, 'remove_public_key', [1])])
+        raise Exception("should have been reverted. invalid public key")
+    except:
+        pass
