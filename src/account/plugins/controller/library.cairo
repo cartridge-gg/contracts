@@ -1,22 +1,18 @@
 %lang starknet
 
-from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_contract_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin, BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.memcpy import memcpy
-from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_info
+from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.bool import (TRUE, FALSE)
 from starkware.cairo.common.math import assert_not_zero, unsigned_div_rem, split_felt
 from starkware.cairo.common.bitwise import bitwise_and
-from starkware.cairo.common.serialize import serialize_word
 
 from src.account.IPlugin import IPlugin
-from src.util.sha256 import finalize_sha256, sha256
 from src.ec import EcPoint
 from src.bigint import BigInt3
-from src.ecdsa import verify_ecdsa
+from src.webauthn import Webauthn
 
 #
 # Storage
@@ -126,70 +122,74 @@ namespace Controller:
             # Implementation expects the r, s components decomposed into their limbs.
             let sig_r0 = BigInt3(signature[1], signature[2], signature[3])
             let sig_s0 = BigInt3(signature[4], signature[5], signature[6])
+            let challenge_offset_len = signature[7]
+            let challenge_offset_rem = signature[8]
+            let client_data_json_len = signature[9]
+            let client_data_json_rem = signature[10]
+            let client_data_json = signature + 11
+            let authenticator_data_len = signature[11 + client_data_json_len]
+            let authenticator_data_rem = signature[12 + client_data_json_len]
+            let authenticator_data = signature + 13 + client_data_json_len
 
-            let (local sha256_ptr_start : felt*) = alloc()
-            let sha256_ptr = sha256_ptr_start
-
-            let (local input: felt*) = alloc()
+            let (local challenge: felt*) = alloc()
 
             let (high, low) = split_felt(hash)
 
-            # Extract words
-            let (b0) = bitwise_and(low, 2 ** 32 - 1)
+            # Extract 24bit chunks which are then base64 encoded to 32bit words
+            let (b0) = bitwise_and(low, 2 ** 16 - 1)
 
-            let (q1, r1) = unsigned_div_rem(low, 2 ** 32)
-            let (b1) = bitwise_and(q1, 2 ** 32 - 1)
+            let (q1, r1) = unsigned_div_rem(low, 2 ** 16)
+            let (b1) = bitwise_and(q1, 2 ** 24 - 1)
 
-            let (q2, r2) = unsigned_div_rem(q1, 2 ** 32)
-            let (b2) = bitwise_and(q2, 2 ** 32 - 1)
+            let (q2, r2) = unsigned_div_rem(q1, 2 ** 24)
+            let (b2) = bitwise_and(q2, 2 ** 24 - 1)
 
-            let (q3, r3) = unsigned_div_rem(q2, 2 ** 32)
-            let (b3) = bitwise_and(q3, 2 ** 32 - 1)
+            let (q3, r3) = unsigned_div_rem(q2, 2 ** 24)
+            let (b3) = bitwise_and(q3, 2 ** 24 - 1)
 
-            let (b4) = bitwise_and(high, 2 ** 32 - 1)
+            let (q4, r4) = unsigned_div_rem(q3, 2 ** 24)
+            let (b4) = bitwise_and(q4, 2 ** 24 - 1)
 
-            let (q5, r5) = unsigned_div_rem(high, 2 ** 32)
-            let (b5) = bitwise_and(q5, 2 ** 32 - 1)
+            let (q5, r5) = unsigned_div_rem(q4, 2 ** 24)
 
-            let (q6, r6) = unsigned_div_rem(q5, 2 ** 32)
-            let (b6) = bitwise_and(q6, 2 ** 32 - 1)
+            let (b50) = bitwise_and(high, 2 ** 8 - 1)
+            let b5 = b50 * 2 ** 16 + q5
 
-            let (q7, r7) = unsigned_div_rem(q6, 2 ** 32)
-            let (b7) = bitwise_and(q7, 2 ** 32 - 1)
+            let (q6, r6) = unsigned_div_rem(high, 2 ** 8)
+            let (b6) = bitwise_and(q6, 2 ** 24 - 1)
 
-            assert [input + 0] = b7
-            assert [input + 1] = b6
-            assert [input + 2] = b5
-            assert [input + 3] = b4
-            assert [input + 4] = b3
-            assert [input + 5] = b2
-            assert [input + 6] = b1
-            assert [input + 7] = b0
+            let (q7, r7) = unsigned_div_rem(q6, 2 ** 24)
+            let (b7) = bitwise_and(q7, 2 ** 24 - 1)
 
-            let (output: felt*) = sha256{sha256_ptr=sha256_ptr}(input, 32)
-            finalize_sha256(sha256_ptr, sha256_ptr)
+            let (q8, r8) = unsigned_div_rem(q7, 2 ** 24)
+            let (b8) = bitwise_and(q8, 2 ** 24 - 1)
 
-            # Construct 86bit hash limbs
-            let (h02) = bitwise_and(output[5], 4194303)
-            let h0 = output[7] + 2 ** 32 * output[6] + 2 ** 64 * h02
+            let (q9, r9) = unsigned_div_rem(q8, 2 ** 24)
+            let (b9) = bitwise_and(q9, 2 ** 24 - 1)
 
-            let (h10, r10) = unsigned_div_rem(output[5], 4194304)
-            let (h13) = bitwise_and(output[2], 4095)
-            let h1 = h10 + output[4] * 2 ** 10 + output[3] * 2 ** 42 + h13 * 2 ** 74
+            let (q10, r10) = unsigned_div_rem(q9, 2 ** 24)
+            let (b10) = bitwise_and(q10, 2 ** 24 - 1)
 
-            let (h20, r20) = unsigned_div_rem(output[2], 4096)
-            let h2 = h20 + output[1] * 2 ** 20 + output[0] * 2 ** 52
+            assert challenge[0] = b10
+            assert challenge[1] = b9
+            assert challenge[2] = b8
+            assert challenge[3] = b7
+            assert challenge[4] = b6
+            assert challenge[5] = b5
+            assert challenge[6] = b4
+            assert challenge[7] = b3
+            assert challenge[8] = b2
+            assert challenge[9] = b1
+            assert challenge[10] = b0
 
-            let hash_bigint3 = BigInt3(h0, h1, h2)
-            verify_ecdsa(
-                public_key_pt=pub_pt,
-                msg_hash=hash_bigint3,
-                r=sig_r0,
-                s=sig_s0)
+            let (local origin: felt*) = alloc()
+            Webauthn.verify(pub_pt, sig_r0, sig_s0, 
+                0, 0, challenge_offset_len, challenge_offset_rem, 11, 1, challenge, 0, 0, 0, origin,
+                client_data_json_len, client_data_json_rem, client_data_json,
+                authenticator_data_len, authenticator_data_rem, authenticator_data)
 
             return (is_valid=TRUE)
         else:
-
             # This interface expects a signature pointer and length to make
             # no assumption about signature validation schemes.
             # But this implementation does, and it expects a (pub, sig_r, sig_s) tuple.

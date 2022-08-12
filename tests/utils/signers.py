@@ -1,5 +1,7 @@
 from nile.signer import Signer, from_call_to_call_array, get_transaction_hash
 from fastecdsa import curve, ecdsa, keys
+from webauthn.helpers import bytes_to_base64url
+import hashlib
 
 BASE = 2 ** 86
 
@@ -25,12 +27,9 @@ class StarkSigner():
         (call_array, calldata, sig_r, sig_s) = self.signer.sign_transaction(hex(account.contract_address), build_calls, nonce, max_fee)
         return await account.__execute__(call_array, calldata, nonce).invoke(signature=[sig_r, sig_s])
 
-
 class P256Signer():
-    def __init__(self, private_key=None):
-        if private_key is None:
-            private_key = keys.gen_private_key(curve.P256)
-
+    def __init__(self):
+        private_key = keys.gen_private_key(curve.P256)
         pt = keys.get_public_key(private_key, curve.P256)
         x0, x1, x2 = split(pt.x)
         y0, y1, y2 = split(pt.y)
@@ -40,6 +39,46 @@ class P256Signer():
 
     async def send_transaction(self, account, to, selector_name, calldata, nonce=None, max_fee=0):
         return await self.send_transactions(account, [(to, selector_name, calldata)], nonce, max_fee)
+
+    def sign_transaction(self, contract_address, call_array, calldata, nonce, max_fee):
+        message_hash = get_transaction_hash(
+            contract_address, call_array, calldata, nonce, max_fee
+        )
+
+        challenge_bytes = message_hash.to_bytes(
+            32, byteorder="big")
+        challenge = bytes_to_base64url(challenge_bytes)
+        client_data_json = f"""{{"type":"webauthn.get","challenge":"{challenge}","origin":"https://cartridge.gg","crossOrigin":false}}"""
+        client_data_bytes = client_data_json.encode("ASCII")
+
+        client_data_hash = hashlib.sha256()
+        client_data_hash.update(client_data_bytes)
+        client_data_hash_bytes = client_data_hash.digest()
+
+        client_data_rem = len(client_data_bytes) % 4
+        for _ in range(4 - client_data_rem):
+            client_data_bytes = client_data_bytes + b'\x00'
+
+        authenticator_data_bytes = bytes.fromhex("20a97ec3f8efbc2aca0cf7cabb420b4a09d0aec9905466c9adf79584fa75fed30500000000")
+        authenticator_data_rem = len(authenticator_data_bytes) % 4
+
+        r, s = ecdsa.sign(authenticator_data_bytes + client_data_hash_bytes, self.private_key, curve.P256)
+        r0, r1, r2 = split(r)
+        s0, s1, s2 = split(s)
+
+        authenticator_data = [int.from_bytes(authenticator_data_bytes[i:i+4], 'big') for i in range(0, len(authenticator_data_bytes), 4)]
+        client_data_json = [int.from_bytes(client_data_bytes[i:i+4], 'big') for i in range(0, len(client_data_bytes), 4)]
+
+        challenge_offset_len = 9
+        challenge_offset_rem = 0
+
+        return [
+            r0, r1, r2,
+            s0, s1, s2,
+            challenge_offset_len, challenge_offset_rem,
+            len(client_data_json), client_data_rem, *client_data_json,
+            len(authenticator_data), authenticator_data_rem, *authenticator_data,
+        ]
 
     async def send_transactions(self, account, calls, nonce=None, max_fee=0):
         if nonce is None:
@@ -53,18 +92,12 @@ class P256Signer():
             build_calls.append(build_call)
 
         (call_array, calldata) = from_call_to_call_array(build_calls)
-        message_hash = get_transaction_hash(
-            account.contract_address, call_array, calldata, nonce, max_fee
-        )
 
-        r, s = ecdsa.sign(message_hash.to_bytes(
-            32, byteorder="big"), self.private_key, curve.P256)
-        r0, r1, r2 = split(r)
-        s0, s1, s2 = split(s)
+        signature = self.sign_transaction(account.contract_address, call_array, calldata, nonce, max_fee)
 
         # the hash and signature are returned for other tests to use
         return await account.__execute__(call_array, calldata, nonce).invoke(
-            signature=[0, r0, r1, r2, s0, s1, s2]
+            signature=[0, *signature]
         )
 
 def split(G):

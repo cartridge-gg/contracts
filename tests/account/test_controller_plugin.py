@@ -10,7 +10,9 @@ from utils.profiling import gas_report
 LOGGER = logging.getLogger(__name__)
 
 stark_signer = StarkSigner(123456789987654321)
-webauthn_signer = P256Signer(123)
+webauthn_signer = P256Signer()
+
+# webauthn_signer.send_transactions("0x0", [("0xdead", 'add_public_key', [0])])
 
 
 @pytest.fixture(scope='module')
