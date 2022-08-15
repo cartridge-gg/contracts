@@ -7,7 +7,7 @@ from starkware.cairo.common.uint256 import Uint256
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.math import assert_not_zero
 
-from openzeppelin.token.erc1155.library import ERC1155
+from src.tokens.erc1155.library import ERC1155
 from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.access.ownable.library import Ownable
 from openzeppelin.security.pausable.library import Pausable
@@ -182,7 +182,6 @@ func mint{
         data: felt*
     ):
     Ownable.assert_only_owner()
-    let (caller) = get_caller_address()
     ERC1155._mint(to, id, amount, data_len, data)
     return ()
 end
@@ -202,7 +201,6 @@ func mintBatch{
         data: felt*
     ):
     Ownable.assert_only_owner()
-    let (caller) = get_caller_address()
     ERC1155._mint_batch(to, ids_len, ids, amounts_len, amounts, data_len, data)
     return ()
 end

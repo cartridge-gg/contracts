@@ -5,7 +5,7 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.bool import TRUE
 
-from openzeppelin.security.initializable import Initializable
+from openzeppelin.security.initializable.library import Initializable
 
 struct CallArray:
     member to: felt
