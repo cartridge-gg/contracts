@@ -1,7 +1,26 @@
-# cartridge contracts
+# Cartridge Contracts
 
-## Build
+Cairo implementations of Cartridge onchain functionality.
+
+## Setup
+
+First, install nile + protostar.
+
+Then install the package dependencies:
+```sh
+bin/install
+```
+
+## Compile
 
 ```sh
-protostar build --cairo-path ./lib/cairo_contracts/src
+bin/compile
+```
+
+## Declare
+
+First, remove the existing alias in `*.declarations.txt` if it exists. Then, modify `bin/declare` to declare the contracts you are interested.
+
+```sh
+bin/declare
 ```

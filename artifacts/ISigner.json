@@ -240,7 +240,7 @@
                 "type": "struct"
             },
             "openzeppelin.account.library.ERC165": {
-                "destination": "openzeppelin.introspection.ERC165.ERC165",
+                "destination": "openzeppelin.introspection.erc165.library.ERC165",
                 "type": "alias"
             },
             "openzeppelin.account.library.HashBuiltin": {
@@ -248,7 +248,7 @@
                 "type": "alias"
             },
             "openzeppelin.account.library.IACCOUNT_ID": {
-                "destination": "openzeppelin.utils.constants.IACCOUNT_ID",
+                "destination": "openzeppelin.utils.constants.library.IACCOUNT_ID",
                 "type": "alias"
             },
             "openzeppelin.account.library.SignatureBuiltin": {
@@ -303,133 +303,129 @@
                 "destination": "starkware.cairo.common.cairo_secp.signature.verify_eth_signature_uint256",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.ERC165": {
+            "openzeppelin.introspection.erc165.library.ERC165": {
                 "type": "namespace"
             },
-            "openzeppelin.introspection.ERC165.ERC165.Args": {
-                "full_name": "openzeppelin.introspection.ERC165.ERC165.Args",
+            "openzeppelin.introspection.erc165.library.ERC165.Args": {
+                "full_name": "openzeppelin.introspection.erc165.library.ERC165.Args",
                 "members": {},
                 "size": 0,
                 "type": "struct"
             },
-            "openzeppelin.introspection.ERC165.ERC165.ImplicitArgs": {
-                "full_name": "openzeppelin.introspection.ERC165.ERC165.ImplicitArgs",
+            "openzeppelin.introspection.erc165.library.ERC165.ImplicitArgs": {
+                "full_name": "openzeppelin.introspection.erc165.library.ERC165.ImplicitArgs",
                 "members": {},
                 "size": 0,
                 "type": "struct"
             },
-            "openzeppelin.introspection.ERC165.ERC165.Return": {
+            "openzeppelin.introspection.erc165.library.ERC165.Return": {
                 "cairo_type": "()",
                 "type": "type_definition"
             },
-            "openzeppelin.introspection.ERC165.ERC165.SIZEOF_LOCALS": {
+            "openzeppelin.introspection.erc165.library.ERC165.SIZEOF_LOCALS": {
                 "type": "const",
                 "value": 0
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces": {
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces": {
                 "type": "namespace"
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.Args": {
-                "full_name": "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.Args",
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.Args": {
+                "full_name": "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.Args",
                 "members": {},
                 "size": 0,
                 "type": "struct"
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.HashBuiltin": {
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.HashBuiltin": {
                 "destination": "starkware.cairo.common.cairo_builtins.HashBuiltin",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.ImplicitArgs": {
-                "full_name": "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.ImplicitArgs",
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.ImplicitArgs": {
+                "full_name": "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.ImplicitArgs",
                 "members": {},
                 "size": 0,
                 "type": "struct"
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.Return": {
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.Return": {
                 "cairo_type": "()",
                 "type": "type_definition"
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.SIZEOF_LOCALS": {
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.SIZEOF_LOCALS": {
                 "type": "const",
                 "value": 0
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.hash2": {
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.hash2": {
                 "destination": "starkware.cairo.common.hash.hash2",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.normalize_address": {
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.normalize_address": {
                 "destination": "starkware.starknet.common.storage.normalize_address",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.storage_read": {
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.storage_read": {
                 "destination": "starkware.starknet.common.syscalls.storage_read",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.ERC165_supported_interfaces.storage_write": {
+            "openzeppelin.introspection.erc165.library.ERC165_supported_interfaces.storage_write": {
                 "destination": "starkware.starknet.common.syscalls.storage_write",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.HashBuiltin": {
+            "openzeppelin.introspection.erc165.library.HashBuiltin": {
                 "destination": "starkware.cairo.common.cairo_builtins.HashBuiltin",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.IERC165_ID": {
-                "destination": "openzeppelin.utils.constants.IERC165_ID",
+            "openzeppelin.introspection.erc165.library.IERC165_ID": {
+                "destination": "openzeppelin.utils.constants.library.IERC165_ID",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.INVALID_ID": {
-                "destination": "openzeppelin.utils.constants.INVALID_ID",
+            "openzeppelin.introspection.erc165.library.INVALID_ID": {
+                "destination": "openzeppelin.utils.constants.library.INVALID_ID",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.SignatureBuiltin": {
-                "destination": "starkware.cairo.common.cairo_builtins.SignatureBuiltin",
-                "type": "alias"
-            },
-            "openzeppelin.introspection.ERC165.TRUE": {
+            "openzeppelin.introspection.erc165.library.TRUE": {
                 "destination": "starkware.cairo.common.bool.TRUE",
                 "type": "alias"
             },
-            "openzeppelin.introspection.ERC165.assert_not_equal": {
+            "openzeppelin.introspection.erc165.library.assert_not_equal": {
                 "destination": "starkware.cairo.common.math.assert_not_equal",
                 "type": "alias"
             },
-            "openzeppelin.utils.constants.DEFAULT_ADMIN_ROLE": {
+            "openzeppelin.utils.constants.library.DEFAULT_ADMIN_ROLE": {
                 "type": "const",
                 "value": 0
             },
-            "openzeppelin.utils.constants.IACCESSCONTROL_ID": {
+            "openzeppelin.utils.constants.library.IACCESSCONTROL_ID": {
                 "type": "const",
                 "value": 2036718347
             },
-            "openzeppelin.utils.constants.IACCOUNT_ID": {
+            "openzeppelin.utils.constants.library.IACCOUNT_ID": {
                 "type": "const",
                 "value": 4044209476
             },
-            "openzeppelin.utils.constants.IERC165_ID": {
+            "openzeppelin.utils.constants.library.IERC165_ID": {
                 "type": "const",
                 "value": 33540519
             },
-            "openzeppelin.utils.constants.IERC721_ENUMERABLE_ID": {
+            "openzeppelin.utils.constants.library.IERC721_ENUMERABLE_ID": {
                 "type": "const",
                 "value": 2014223715
             },
-            "openzeppelin.utils.constants.IERC721_ID": {
+            "openzeppelin.utils.constants.library.IERC721_ID": {
                 "type": "const",
                 "value": 2158778573
             },
-            "openzeppelin.utils.constants.IERC721_METADATA_ID": {
+            "openzeppelin.utils.constants.library.IERC721_METADATA_ID": {
                 "type": "const",
                 "value": 1532892063
             },
-            "openzeppelin.utils.constants.IERC721_RECEIVER_ID": {
+            "openzeppelin.utils.constants.library.IERC721_RECEIVER_ID": {
                 "type": "const",
                 "value": 353073666
             },
-            "openzeppelin.utils.constants.INVALID_ID": {
+            "openzeppelin.utils.constants.library.INVALID_ID": {
                 "type": "const",
                 "value": 4294967295
             },
-            "openzeppelin.utils.constants.UINT8_MAX": {
+            "openzeppelin.utils.constants.library.UINT8_MAX": {
                 "type": "const",
                 "value": 256
             },
@@ -1213,7 +1209,7 @@
                         "cairo_type": "felt",
                         "offset": 2
                     },
-                    "reserved": {
+                    "deploy_from_zero": {
                         "cairo_type": "felt",
                         "offset": 5
                     },

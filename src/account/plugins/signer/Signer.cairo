@@ -5,7 +5,7 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.starknet.common.syscalls import get_tx_info
 
-from openzeppelin.security.initializable import Initializable
+from openzeppelin.security.initializable.library import Initializable
 from src.account.plugins.signer.library import Signer
 
 struct CallArray:

@@ -8,10 +8,8 @@ from starkware.cairo.common.bool import TRUE
 from starkware.cairo.common.uint256 import Uint256
 
 from openzeppelin.token.erc20.library import ERC20
-
-from openzeppelin.access.ownable import Ownable
-
-from openzeppelin.security.pausable import Pausable
+from openzeppelin.access.ownable.library import Ownable
+from openzeppelin.security.pausable.library import Pausable
 
 @constructor
 func constructor{
