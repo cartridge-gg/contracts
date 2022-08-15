@@ -6,9 +6,9 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.uint256 import Uint256
 
 from openzeppelin.token.erc721.library import ERC721
-from openzeppelin.introspection.ERC165 import ERC165
-from openzeppelin.security.pausable import Pausable
-from openzeppelin.access.ownable import Ownable
+from openzeppelin.introspection.erc165.library import ERC165
+from openzeppelin.security.pausable.library import Pausable
+from openzeppelin.access.ownable.library import Ownable
 
 from src.tokens.Avatar.library import create_tokenURI
 from src.util.str import string, str_concat, str_from_literal

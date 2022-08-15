@@ -1,0 +1,5 @@
+#!/bin/bash
+set -eu
+
+CAIRO_PATH=lib/cairo_contracts/src:lib/cairo_webauthn:lib/cairo_webauthn/lib/cairo_base64:lib/cairo_webauthn/lib/cairo_p256:lib/cairo_webauthn/lib/cairo_sha256:lib \
+    nile compile --directory src
