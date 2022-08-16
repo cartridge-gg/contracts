@@ -212,10 +212,6 @@ func burn{
         range_check_ptr
     }(from_: felt, id: Uint256, amount: Uint256):
     Ownable.assert_only_owner()
-    let (caller) = get_caller_address()
-    with_attr error_message("ERC1155: called from zero address"):
-        assert_not_zero(caller)
-    end
     ERC1155._burn(from_, id, amount)
     return ()
 end
@@ -233,10 +229,6 @@ func burnBatch{
         amounts: Uint256*
     ):
     Ownable.assert_only_owner()
-    let (caller) = get_caller_address()
-    with_attr error_message("ERC1155: called from zero address"):
-        assert_not_zero(caller)
-    end
     ERC1155._burn_batch(from_, ids_len, ids, amounts_len, amounts)
     return ()
 end
