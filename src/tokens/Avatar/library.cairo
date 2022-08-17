@@ -46,7 +46,7 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     alloc_locals
 
     # Format:
-    # <svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">
+    # <svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}">
 
     let (w_literal : felt) = literal_from_number(w)
     let (h_literal : felt) = literal_from_number(h)
@@ -57,9 +57,13 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     assert arr[2] = '\" height=\"'
     assert arr[3] = h_literal
     assert arr[4] = '\" xmlns=\"http://www.w3.org/'
-    assert arr[5] = '2000/svg\">'
+    assert arr[5] = '2000/svg\" viewBox=\"0 0 '
+    assert arr[6] = w_literal
+    assert arr[7] = ' '
+    assert arr[8] = h_literal
+    assert arr[9] = '\">'
 
-    return (string(6, arr))
+    return (string(10, arr))
 end
 
 func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
