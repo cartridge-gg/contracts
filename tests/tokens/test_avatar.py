@@ -18,7 +18,8 @@ from utils.deployment import deploy
 #     avatar, avatar_class = await deploy(starknet, "src/fixtures/Avatar.cairo")
 
 #     # Check the result of get_balance().
-#     character = await avatar.test_generate_character().call()
+#     seed = random.randint(1337, 1000000)
+#     character = await avatar.test_generate_character().invoke()
 #     recovered_svg = felt_array_to_ascii(character.result.tokenURI)
 #     print(f'> tpg::return_svg(): {recovered_svg}')
 
@@ -31,41 +32,39 @@ async def test_generate_avatar_with_seed():
 
     avatar, avatar_class = await deploy(starknet, "src/fixtures/Avatar.cairo")
 
+    f = open("avatars_preview.html", "w")
 
+    html_start = """
+<html>
+    <head>
+        <title>Avatars Preview</title>
+        <style>
+            html {
+                background-color: #1E221F;
+            }
+            svg {
+                height: 50px;
+                width: 50px;
+                margin: 10px;
+            }
+        </style>
+    </head>
+    <body>
+"""
+    html_end = "</body></html>"
 
-    f = open("avatars.html", "w")
+    f.write(html_start)
 
-    htmlStart = """
-        <html>
-            <head>
-                <title>Avatars Test</title>
-                <style>
-                    svg {
-                        height: 50px;
-                        width: 50px;
-                        margin: 10px;
-                    }
-                </style>
-            </head>
-            <body>"""
-
-    htmlEnd = "</body></html>"
-
-
-    f.write(htmlStart)
-
-    for idx in range(20):
-        character = await avatar.test_generate_character_with_seed(seed=random.randint(1337,5224073)).invoke()
+    for x in range(10):
+        seed = random.randint(1337, 1000000)
+        character = await avatar.test_generate_character(seed=seed).invoke()
         recovered_svg = felt_array_to_ascii(character.result.tokenURI)
         svg = recovered_svg.replace('\\"','\"')
-        print(svg)
         f.write(svg)
 
-    f.write(htmlEnd)
+    f.write(html_end)
     f.close()
     
-
-
 
 def felt_array_to_ascii(felt_array):
     ret = ""

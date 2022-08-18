@@ -9,7 +9,7 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.squash_dict import squash_dict
-from starkware.cairo.common.math_cmp import is_le
+from starkware.cairo.common.math_cmp import is_le, is_nn
 from starkware.cairo.common.registers import get_label_location
 
 from src.util.str import string, literal_from_number, str_from_literal, str_concat
@@ -46,7 +46,7 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     alloc_locals
 
     # Format:
-    # <svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}">
+    # <svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" shape-rendering="crispEdges">
 
     let (w_literal : felt) = literal_from_number(w)
     let (h_literal : felt) = literal_from_number(h)
@@ -61,9 +61,10 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     assert arr[6] = w_literal
     assert arr[7] = ' '
     assert arr[8] = h_literal
-    assert arr[9] = '\">'
+    assert arr[9] = '\" shape-rendering='
+    assert arr[10] = '\"crispEdges\">'
 
-    return (string(10, arr))
+    return (string(11, arr))
 end
 
 func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
@@ -103,7 +104,7 @@ struct Cell:
     member col : felt
 end
 
-func init_cell_list{range_check_ptr}(cell_list : Cell*, seed, n_steps, dict : DictAccess*) -> (
+func init_dict{range_check_ptr}(seed, n_steps, dict : DictAccess*) -> (
     dict : DictAccess*
 ):
     if n_steps == 0:
@@ -118,15 +119,13 @@ func init_cell_list{range_check_ptr}(cell_list : Cell*, seed, n_steps, dict : Di
     if event == 0:
         assert dict.prev_value = 1
         assert dict.new_value = 1
-        tempvar range_check_ptr = range_check_ptr
     else:
         assert dict.prev_value = 0
         assert dict.new_value = 0
-        tempvar range_check_ptr = range_check_ptr
     end
 
-    return init_cell_list(
-        cell_list=cell_list + Cell.SIZE, seed=seed, n_steps=n_steps - 1, dict=dict + DictAccess.SIZE
+    return init_dict(
+        seed=seed, n_steps=n_steps - 1, dict=dict + DictAccess.SIZE
     )
 end
 
@@ -195,7 +194,7 @@ func grow{range_check_ptr}(cell_list : Cell*, n_steps, dict : DictAccess*) -> (
     )
 end
 
-func render{range_check_ptr}(dict : DictAccess*, cell_list : Cell*, svg_str : string, n_steps) -> (
+func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string, n_steps) -> (
     svg_str : string
 ):
     alloc_locals
@@ -204,95 +203,71 @@ func render{range_check_ptr}(dict : DictAccess*, cell_list : Cell*, svg_str : st
         return (svg_str=svg_str)
     end
 
-    tempvar range_check_ptr = range_check_ptr
-
-    let cell : Cell* = cell_list + (Cell.SIZE * dict.key)
-
-    local fill
+    let cell : Cell* = grid + (Cell.SIZE * dict.key)
 
     if dict.prev_value == 0:
-        fill = '#000'
+        let fill = '#FBCB4A' # brand color
+        let (wh_fp2) = numfp2_from_felt(30)
+        let y_offset = 30 * cell.row
+        let (y_fp2) = numfp2_from_felt(y_offset)
+
+        let x1_offset = 30 * cell.col
+        let (x1_fp2) = numfp2_from_felt(x1_offset)
+
+        let svg_rect_left = SvgRect(x=x1_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
+        let (rect_str : string) = str_from_svg_rect(svg_rect_left)
+        let (next_svg_str) = str_concat(svg_str, rect_str)
+
+        let x2_offset = 270 - (30 * cell.col)
+        let (x2_fp2) = numfp2_from_felt(x2_offset)
+
+        let svg_rect_right = SvgRect(x=x2_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
+        let (rect_str : string) = str_from_svg_rect(svg_rect_right)
+        let (final_svg_str) = str_concat(next_svg_str, rect_str)
+        return render(
+            dict=dict + DictAccess.SIZE, grid=grid, svg_str=final_svg_str, n_steps=n_steps - 1
+        )
     else:
-        fill = '#fff'
+        return render(
+            dict=dict + DictAccess.SIZE, grid=grid, svg_str=svg_str, n_steps=n_steps - 1
+        )
+    end
+end
+
+func create_grid{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt, grid: Cell*, grid_start: Cell*) -> (
+    grid_end : Cell*
+):
+    alloc_locals
+
+    if row == 0 and col == 0:
+        return (grid_end=grid)
+    end
+    
+    if row != 0:
+        assert grid[0] = Cell(row=row, col=col)
+        return create_grid(row=row - 1, col=col, grid=grid + Cell.SIZE, grid_start=grid_start)
     end
 
-    let (wh_fp2) = numfp2_from_felt(30)
-    let y_offset = 30 * cell.row
-    let (y_fp2) = numfp2_from_felt(y_offset)
+    if col != 0:
+        assert grid[0] = Cell(row=grid_start.row, col=col)
+        return create_grid(row=grid_start.row, col=col - 1, grid=grid + Cell.SIZE, grid_start=grid_start)
+    end
 
-    let x1_offset = 30 * cell.col
-    let (x1_fp2) = numfp2_from_felt(x1_offset)
-
-    let svg_rect_left = SvgRect(x=x1_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
-    let (rect_str : string) = str_from_svg_rect(svg_rect_left)
-    let (next_svg_str) = str_concat(svg_str, rect_str)
-
-    let x2_offset = 270 - (30 * cell.col)
-    let (x2_fp2) = numfp2_from_felt(x2_offset)
-
-    let svg_rect_right = SvgRect(x=x2_fp2, y=y_fp2, w=wh_fp2, h=wh_fp2, fill=fill)
-    let (rect_str : string) = str_from_svg_rect(svg_rect_right)
-    let (final_svg_str) = str_concat(next_svg_str, rect_str)
-
-    return render(
-        dict=dict + DictAccess.SIZE, cell_list=cell_list, svg_str=final_svg_str, n_steps=n_steps - 1
-    )
+    # unreachable code but required as 'else' is not yet supported in base case condition
+    return (grid_end=grid)
 end
 
 func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (svg_str : string):
     alloc_locals
-
-    local grid_tuple : (
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-        Cell,
-    ) = (
-        Cell(row=1, col=1), Cell(row=1, col=2), Cell(row=1, col=3), Cell(row=1, col=4),
-        Cell(row=2, col=1), Cell(row=2, col=2), Cell(row=2, col=3), Cell(row=2, col=4),
-        Cell(row=3, col=1), Cell(row=3, col=2), Cell(row=3, col=3), Cell(row=3, col=4),
-        Cell(row=4, col=1), Cell(row=4, col=2), Cell(row=4, col=3), Cell(row=4, col=4),
-        Cell(row=5, col=1), Cell(row=5, col=2), Cell(row=5, col=3), Cell(row=5, col=4),
-        Cell(row=6, col=1), Cell(row=6, col=2), Cell(row=6, col=3), Cell(row=6, col=4),
-        Cell(row=7, col=1), Cell(row=7, col=2), Cell(row=7, col=3), Cell(row=7, col=4),
-        Cell(row=8, col=1), Cell(row=8, col=2), Cell(row=8, col=3), Cell(row=8, col=4),
-        )
-
+    
     let (__fp__, _) = get_fp_and_pc()
 
     let (local dict_start : DictAccess*) = alloc()
     let (local squashed_dict : DictAccess*) = alloc()
+    let (local grid_start : Cell*) = alloc()
 
-    let (dict_end) = init_cell_list(
-        cell_list=cast(&grid_tuple, Cell*), seed=seed, n_steps=32, dict=dict_start
+    let (dict_end) = init_dict(
+        seed=seed, n_steps=32, dict=dict_start
     )
 
     let (squashed_dict_end : DictAccess*) = squash_dict(
@@ -302,10 +277,12 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (sv
     assert squashed_dict_end - squashed_dict = 32 *
         DictAccess.SIZE
 
+    let (grid_end : Cell*) = create_grid(row=8, col=4, grid=grid_start, grid_start=grid_start)
+
     # On a canvas of 300 x 300,
     let (header_str : string) = return_svg_header(300, 300)
     let (render_str : string) = render(
-        dict=squashed_dict, cell_list=cast(&grid_tuple, Cell*), svg_str=header_str, n_steps=32
+        dict=squashed_dict, grid=grid_start, svg_str=header_str, n_steps=32
     )
     let (close_str : string) = str_from_literal('</svg>')
     let (svg_str) = str_concat(render_str, close_str)
