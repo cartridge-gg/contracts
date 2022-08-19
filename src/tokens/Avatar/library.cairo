@@ -31,21 +31,23 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     alloc_locals
 
     # Format:
-    # <svg width="300" height="300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" shape-rendering="crispEdges">
-
-    let (w_literal : felt) = literal_from_number(w)
-    let (h_literal : felt) = literal_from_number(h)
+    # <svg width={w*scale} height={h*scale} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" shape-rendering="crispEdges">
+    let scale = 10
+    let (w_literal : felt) = literal_from_number(w * scale)
+    let (h_literal : felt) = literal_from_number(h * scale)
+    let (vb_w_literal : felt) = literal_from_number(w)
+    let (vb_h_literal : felt) = literal_from_number(h)
 
     let (arr) = alloc()
     assert arr[0] = '<svg width=\"'
-    assert arr[1] = '300'
+    assert arr[1] = w_literal
     assert arr[2] = '\" height=\"'
-    assert arr[3] = '300'
+    assert arr[3] = h_literal
     assert arr[4] = '\" xmlns=\"http://www.w3.org/'
     assert arr[5] = '2000/svg\" viewBox=\"0 0 '
-    assert arr[6] = w_literal
+    assert arr[6] = vb_w_literal
     assert arr[7] = ' '
-    assert arr[8] = h_literal
+    assert arr[8] = vb_h_literal
     assert arr[9] = '\" shape-rendering='
     assert arr[10] = '\"crispEdges\">'
 
@@ -67,15 +69,15 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     assert arr[2] = '\" y=\"'
     assert arr[3] = y_literal
     assert arr[4] = '\" width=\"1\"'
-    assert arr[6] = '\" height=\"1\"'
-    assert arr[8] = '\" fill=\"'
-    assert arr[9] = svg_rect.fill
-    assert arr[10] = '\" />'
+    assert arr[5] = 'height=\"1\"'
+    assert arr[6] = 'fill=\"'
+    assert arr[7] = svg_rect.fill
+    assert arr[8] = '\" />'
 
-    return (string(11, arr))
+    return (string(9, arr))
 end
 
-func init_dict{range_check_ptr}(seed, n_steps, dict : DictAccess*) -> (
+func init_dict{range_check_ptr}(seed, n_steps, max_steps, dict : DictAccess*) -> (
     dict : DictAccess*
 ):
     if n_steps == 0:
@@ -85,9 +87,9 @@ func init_dict{range_check_ptr}(seed, n_steps, dict : DictAccess*) -> (
     let (prob, _) = unsigned_div_rem(seed, n_steps + 1)
     let (_, event) = unsigned_div_rem(prob, 2)
 
-    assert dict.key = 32 - n_steps
+    assert dict.key = max_steps - n_steps
 
-    if event == 0:
+    if event == 1:
         assert dict.prev_value = 1
         assert dict.new_value = 1
     else:
@@ -96,7 +98,7 @@ func init_dict{range_check_ptr}(seed, n_steps, dict : DictAccess*) -> (
     end
 
     return init_dict(
-        seed=seed, n_steps=n_steps - 1, dict=dict + DictAccess.SIZE
+        seed=seed, n_steps=n_steps - 1, max_steps=max_steps, dict=dict + DictAccess.SIZE
     )
 end
 
@@ -165,7 +167,7 @@ func grow{range_check_ptr}(cell_list : Cell*, n_steps, dict : DictAccess*) -> (
     )
 end
 
-func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string, n_steps) -> (
+func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string, dimension: felt, n_steps) -> (
     svg_str : string
 ):
     alloc_locals
@@ -179,74 +181,96 @@ func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string,
     if dict.prev_value == 0:
         let fill = '#FBCB4A' # brand color
 
-        # let svg_rect_left = SvgRect(x=cell.row, y=cell.col, fill=fill)
-        # let (rect_str : string) = str_from_svg_rect(svg_rect_left)
-        # let (next_svg_str) = str_concat(svg_str, rect_str)
+        let svg_rect_left = SvgRect(x=cell.col - 1, y=cell.row - 1, fill=fill)
+        let (rect_str : string) = str_from_svg_rect(svg_rect_left)
+        let (next_svg_str) = str_concat(svg_str, rect_str)
 
-        # let mirror_x = 7 - cell.col
+        let mirror_x = (dimension + 1) - cell.col
 
-        # let svg_rect_right = SvgRect(x=mirror_x, y=cell.col, fill=fill)
-        # let (rect_str : string) = str_from_svg_rect(svg_rect_right)
-        # let (final_svg_str) = str_concat(next_svg_str, rect_str)
+        let svg_rect_right = SvgRect(x=mirror_x - 1, y=cell.row - 1, fill=fill)
+        let (rect_str : string) = str_from_svg_rect(svg_rect_right)
+        let (final_svg_str) = str_concat(next_svg_str, rect_str)
         return render(
-            dict=dict + DictAccess.SIZE, grid=grid, svg_str=svg_str, n_steps=n_steps - 1
+            dict=dict + DictAccess.SIZE, grid=grid, svg_str=final_svg_str, dimension=dimension, n_steps=n_steps - 1
         )
     else:
         return render(
-            dict=dict + DictAccess.SIZE, grid=grid, svg_str=svg_str, n_steps=n_steps - 1
+            dict=dict + DictAccess.SIZE, grid=grid, svg_str=svg_str, dimension=dimension, n_steps=n_steps - 1
         )
     end
 end
 
-func create_grid{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt, grid: Cell*, grid_start: Cell*) -> (
+func create_grid{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt) -> (
+    grid : Cell*
+):
+    alloc_locals
+
+    let (local grid_start : Cell*) = alloc()
+    grid_recurse(row, col, row, grid_start)
+
+    return(grid_start)
+end
+
+func grid_recurse{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt, row_max: felt, grid: Cell*) -> (
     grid_end : Cell*
 ):
     alloc_locals
 
-    if row == 0 and col == 0:
+    if row == 0 and col == 1:
         return (grid_end=grid)
     end
     
     if row != 0:
         assert grid[0] = Cell(row=row, col=col)
-        return create_grid(row=row - 1, col=col, grid=grid + Cell.SIZE, grid_start=grid_start)
+        return grid_recurse(
+            row=row - 1, 
+            col=col, 
+            row_max=row_max, 
+            grid=grid + Cell.SIZE)
     end
 
-    if col != 0:
-        assert grid[0] = Cell(row=grid_start.row, col=col)
-        return create_grid(row=grid_start.row, col=col - 1, grid=grid + Cell.SIZE, grid_start=grid_start)
+    if col != 1:
+        assert grid[0] = Cell(row=row_max, col=col - 1)
+        return grid_recurse(
+            row=row_max - 1, 
+            col=col - 1, 
+            row_max=row_max, 
+            grid=grid + Cell.SIZE)
     end
 
-    # unreachable code but required as 'else' is not yet supported in base case condition
+    # unreachable code but return required. 
+    # 'else' is not yet supported in base case condition's boolean expression
     return (grid_end=grid)
 end
 
-func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt) -> (svg_str : string):
+func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimension: felt) -> (svg_str : string):
     alloc_locals
-    
-    let (__fp__, _) = get_fp_and_pc()
 
     let (local dict_start : DictAccess*) = alloc()
     let (local squashed_dict : DictAccess*) = alloc()
-    let (local grid_start : Cell*) = alloc()
+
+    let (q_steps, r_steps) = unsigned_div_rem((dimension * dimension), 2)
+    let (q_col, r_col) = unsigned_div_rem(dimension, 2)
+    let n_steps = q_steps + r_steps
+    let col_max = q_col + r_col
+    let row_max = dimension
 
     let (dict_end) = init_dict(
-        seed=seed, n_steps=32, dict=dict_start
+        seed=seed, n_steps=n_steps, max_steps=n_steps, dict=dict_start
     )
 
     let (squashed_dict_end : DictAccess*) = squash_dict(
         dict_accesses=dict_start, dict_accesses_end=dict_end, squashed_dict=squashed_dict
     )
 
-    assert squashed_dict_end - squashed_dict = 32 *
+    assert squashed_dict_end - squashed_dict = n_steps *
         DictAccess.SIZE
 
-    let (grid_end : Cell*) = create_grid(row=8, col=4, grid=grid_start, grid_start=grid_start)
+    let (grid : Cell*) = create_grid(row=row_max, col=col_max)
 
-    # On a canvas of 300 x 300,
-    let (header_str : string) = return_svg_header(8, 8)
+    let (header_str : string) = return_svg_header(dimension, dimension)
     let (render_str : string) = render(
-        dict=squashed_dict, grid=grid_start, svg_str=header_str, n_steps=32
+        dict=squashed_dict, grid=grid, svg_str=header_str, dimension=dimension, n_steps=n_steps
     )
     let (close_str : string) = str_from_literal('</svg>')
     let (svg_str) = str_concat(render_str, close_str)
@@ -264,7 +288,7 @@ func create_tokenURI{
 
     assert_not_zero(seed)
  
-    let (svg_str) = generate_character(seed)
+    let (svg_str) = generate_character(seed=seed, dimension=8)
 
     let (data_prefix_label) = get_label_location(dw_prefix)
     tempvar data_prefix = string(1, cast(data_prefix_label, felt*))
