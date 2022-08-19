@@ -2,6 +2,8 @@
 
 %lang starknet
 
+from starkware.cairo.common.cairo_secp.ec import EcPoint
+
 from openzeppelin.account.library import AccountCallArray
 
 @contract_interface

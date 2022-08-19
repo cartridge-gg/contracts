@@ -21,12 +21,16 @@
                 "destination": "openzeppelin.account.library.AccountCallArray",
                 "type": "alias"
             },
+            "__main__.EcPoint": {
+                "destination": "starkware.cairo.common.cairo_secp.ec.EcPoint",
+                "type": "alias"
+            },
             "__main__.IController": {
                 "type": "namespace"
             },
-            "__main__.IController.ADD_PUBLIC_KEY_SELECTOR": {
+            "__main__.IController.ADD_DEVICE_KEY_SELECTOR": {
                 "type": "const",
-                "value": 463058753480878532788972335187657653864901465906285132779031089245279870292
+                "value": 1078806272820676818223441406507723371967002373918823970475250854049037144498
             },
             "__main__.IController.Args": {
                 "full_name": "__main__.IController.Args",
@@ -48,9 +52,9 @@
                 "size": 0,
                 "type": "struct"
             },
-            "__main__.IController.REMOVE_PUBLIC_KEY_SELECTOR": {
+            "__main__.IController.REMOVE_DEVICE_KEY_SELECTOR": {
                 "type": "const",
-                "value": 22476286334448686560691078968745929496583613931202730087590875379870173107
+                "value": 596645144301397933864682338881468713264236051032544932449657465668915825581
             },
             "__main__.IController.Return": {
                 "cairo_type": "()",
