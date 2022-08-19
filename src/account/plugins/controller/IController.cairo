@@ -6,7 +6,7 @@ from openzeppelin.account.library import AccountCallArray
 
 @contract_interface
 namespace IController:
-    func initialize(public_key: felt):
+    func initialize(admin_key: EcPoint, device_key: felt):
     end
 
     #
@@ -17,10 +17,10 @@ namespace IController:
     # Setters
     #
 
-    func add_public_key(new_public_key: felt):
+    func add_device_key(new_device_key: felt):
     end
 
-    func remove_public_key(public_key: felt):
+    func remove_device_key(device_key: felt):
     end
 
     #

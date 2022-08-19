@@ -20,15 +20,15 @@ struct CallArray:
 end
 
 @event
-func controller_init(account: felt, public_key: felt):
+func controller_init(account: felt, admin_key: EcPoint, device_key: felt):
 end
 
 @event
-func controller_add_public_key(public_key: felt):
+func controller_add_device_key(device_key: felt):
 end
 
 @event
-func controller_remove_public_key(public_key: felt):
+func controller_remove_device_key(device_key: felt):
 end
 
 @external
@@ -36,12 +36,12 @@ func initialize{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(pt: EcPoint, public_key: felt):
+    }(admin_key: EcPoint, device_key: felt):
     Initializable.initialized()
-    Controller.initializer(pt, public_key)
+    Controller.initializer(admin_key, device_key)
 
     let (self) = get_contract_address()
-    controller_init.emit(self, public_key)
+    controller_init.emit(self, admin_key, device_key)
     return ()
 end
 
@@ -64,24 +64,24 @@ end
 #
 
 @external
-func add_public_key{
+func add_device_key{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(new_public_key: felt):
-    Controller.add_public_key(new_public_key)
-    controller_add_public_key.emit(new_public_key)
+    }(new_device_key: felt):
+    Controller.add_device_key(new_device_key)
+    controller_add_device_key.emit(new_device_key)
     return ()
 end
 
 @external
-func remove_public_key{
+func remove_device_key{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(public_key: felt):    
-    Controller.remove_public_key(public_key)
-    controller_remove_public_key.emit(public_key)
+    }(device_key: felt):    
+    Controller.remove_device_key(device_key)
+    controller_remove_device_key.emit(device_key)
     return ()
 end
 

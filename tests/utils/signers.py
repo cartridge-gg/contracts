@@ -25,7 +25,7 @@ class StarkSigner():
             build_calls.append(build_call)
 
         (call_array, calldata, sig_r, sig_s) = self.signer.sign_transaction(hex(account.contract_address), build_calls, nonce, max_fee)
-        return await account.__execute__(call_array, calldata, nonce).invoke(signature=[sig_r, sig_s])
+        return await account.__execute__(call_array, calldata, nonce).invoke(signature=[self.public_key, sig_r, sig_s])
 
 class ControllerStarkSigner():
     def __init__(self, private_key):
@@ -69,20 +69,28 @@ class P256Signer():
 
         challenge_bytes = message_hash.to_bytes(
             32, byteorder="big")
+        # We can add arbitrary bytes after the challenge for the RP challenge
+        challenge_bytes = challenge_bytes
+
         challenge = bytes_to_base64url(challenge_bytes)
-        client_data_json = f"""{{"type":"webauthn.get","challenge":"{challenge}","origin":"https://cartridge.gg","crossOrigin":false}}"""
+        client_data_json = f"""{{"type":"webauthn.get","challenge":"{challenge}","origin":"https://controller.cartridge.gg","crossOrigin":false}}"""
         client_data_bytes = client_data_json.encode("ASCII")
 
         client_data_hash = hashlib.sha256()
         client_data_hash.update(client_data_bytes)
         client_data_hash_bytes = client_data_hash.digest()
 
-        client_data_rem = len(client_data_bytes) % 4
-        for _ in range(4 - client_data_rem):
-            client_data_bytes = client_data_bytes + b'\x00'
+        client_data_rem = 4 - (len(client_data_bytes) % 4)
+        if client_data_rem == 4:
+            client_data_rem = 0
+        if client_data_rem != 0:
+            for _ in range(client_data_rem):
+                client_data_bytes = client_data_bytes + b'\x00'
 
         authenticator_data_bytes = bytes.fromhex("20a97ec3f8efbc2aca0cf7cabb420b4a09d0aec9905466c9adf79584fa75fed30500000000")
-        authenticator_data_rem = len(authenticator_data_bytes) % 4
+        authenticator_data_rem = 4 - len(authenticator_data_bytes) % 4
+        if authenticator_data_rem == 4:
+            authenticator_data_rem = 0
 
         r, s = ecdsa.sign(authenticator_data_bytes + client_data_hash_bytes, self.private_key, curve.P256)
         r0, r1, r2 = split(r)
@@ -94,6 +102,7 @@ class P256Signer():
         challenge_offset_len = 9
         challenge_offset_rem = 0
 
+        # the hash and signature are returned for other tests to use
         return [
             r0, r1, r2,
             s0, s1, s2,

@@ -19,11 +19,11 @@ from src.webauthn import Webauthn
 #
 
 @storage_var
-func Controller_public_key(pub: felt) -> (res: felt):
+func Controller_device_key(pub: felt) -> (res: felt):
 end
 
 @storage_var
-func Controller_p256_point() -> (res: EcPoint):
+func Controller_admin_key() -> (res: EcPoint):
 end
 
 
@@ -37,9 +37,9 @@ namespace Controller:
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
-        }(_pt: EcPoint, _public_key: felt):
-        Controller_p256_point.write(_pt)
-        Controller_public_key.write(_public_key, 1)
+        }(admin_key: EcPoint, device_key: felt):
+        Controller_admin_key.write(admin_key)
+        Controller_device_key.write(device_key, 1)
         return()
     end
 
@@ -65,7 +65,7 @@ namespace Controller:
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
         }(public_key: felt) -> (res: felt):
-        let (res) = Controller_public_key.read(public_key)
+        let (res) = Controller_device_key.read(public_key)
         return (res=res)
     end
 
@@ -73,29 +73,29 @@ namespace Controller:
     # Setters
     #
 
-    func add_public_key{
+    func add_device_key{
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
-        }(new_public_key: felt):
+        }(new_device_key: felt):
         assert_only_self()
-        Controller_public_key.write(new_public_key, 1)
+        Controller_device_key.write(new_device_key, 1)
         return ()
     end
 
-    func remove_public_key{
+    func remove_device_key{
             syscall_ptr : felt*,
             pedersen_ptr : HashBuiltin*,
             range_check_ptr
-        }(public_key: felt):
+        }(device_key: felt):
         assert_only_self()
         
-        with_attr error_message("invalid public key"):
-            let (valid) = is_public_key(public_key)
+        with_attr error_message("invalid device key"):
+            let (valid) = is_public_key(device_key)
             assert_not_zero(valid)
         end
 
-        Controller_public_key.write(public_key, 0)
+        Controller_device_key.write(device_key, 0)
         return ()
     end
 
@@ -117,7 +117,7 @@ namespace Controller:
         alloc_locals
 
         if signature[0] == 0:
-            let (pub_pt) = Controller_p256_point.read()
+            let (admin_key) = Controller_admin_key.read()
 
             # Implementation expects the r, s components decomposed into their limbs.
             let sig_r0 = BigInt3(signature[1], signature[2], signature[3])
@@ -183,7 +183,7 @@ namespace Controller:
             assert challenge[10] = b0
 
             let (local origin: felt*) = alloc()
-            Webauthn.verify(pub_pt, sig_r0, sig_s0, 
+            Webauthn.verify(admin_key, sig_r0, sig_s0, 
                 0, 0, challenge_offset_len, challenge_offset_rem, 11, 1, challenge, 0, 0, 0, origin,
                 client_data_json_len, client_data_json_rem, client_data_json,
                 authenticator_data_len, authenticator_data_rem, authenticator_data)
@@ -197,7 +197,9 @@ namespace Controller:
             let sig_r = signature[1]
             let sig_s = signature[2]
 
-            let (is_pub) = Controller_public_key.read(public_key)
+            let (is_pub) = Controller_device_key.read(public_key)
+
+            assert_not_zero(is_pub)
 
             if is_pub == TRUE:
                 verify_ecdsa_signature(
