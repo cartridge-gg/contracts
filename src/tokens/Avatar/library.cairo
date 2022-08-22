@@ -8,7 +8,6 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.squash_dict import squash_dict
 from starkware.cairo.common.default_dict import (
     default_dict_new,
     default_dict_finalize,
@@ -81,7 +80,7 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     return (string(8, arr))
 end
 
-func init_dict{range_check_ptr}(seed, n_steps, max_steps, dict : DictAccess*) -> (
+func init_dict{range_check_ptr}(seed, color, bias, n_steps, max_steps, dict : DictAccess*) -> (
     dict : DictAccess*
 ):
     if n_steps == 0:
@@ -89,18 +88,18 @@ func init_dict{range_check_ptr}(seed, n_steps, max_steps, dict : DictAccess*) ->
     end
 
     let (prob, _) = unsigned_div_rem(seed, n_steps)
-    let (_, event) = unsigned_div_rem(prob, 3)
+    let (_, event) = unsigned_div_rem(prob, bias)
 
     let key = max_steps - n_steps
 
     if event == 1:
-        dict_write{dict_ptr=dict}(key=key, new_value=1)
+        dict_write{dict_ptr=dict}(key=key, new_value=color)
     else:
         dict_write{dict_ptr=dict}(key=key, new_value=0)
     end
 
     return init_dict(
-        seed=seed, n_steps=n_steps - 1, max_steps=max_steps, dict=dict
+        seed=seed, color=color, bias=bias, n_steps=n_steps - 1, max_steps=max_steps, dict=dict
     )
 end
 
@@ -179,19 +178,17 @@ func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string,
     end
 
     let key = n_steps - 1
-    let (local pixel) = dict_read{dict_ptr=dict}(key=key)
+    let (local color) = dict_read{dict_ptr=dict}(key=key)
     let cell : Cell* = grid + (Cell.SIZE * key)
 
-    if pixel == 1:
-        let fill = '#FBCB4A' # brand color
-
-        let svg_rect_left = SvgRect(x=cell.col - 1, y=cell.row - 1, fill=fill)
+    if color != 0:
+        let svg_rect_left = SvgRect(x=cell.col - 1, y=cell.row - 1, fill=color)
         let (rect_str : string) = str_from_svg_rect(svg_rect_left)
         let (next_svg_str) = str_concat(svg_str, rect_str)
 
         let mirror_x = (dimension + 1) - cell.col
 
-        let svg_rect_right = SvgRect(x=mirror_x - 1, y=cell.row - 1, fill=fill)
+        let svg_rect_right = SvgRect(x=mirror_x - 1, y=cell.row - 1, fill=color)
         let (rect_str : string) = str_from_svg_rect(svg_rect_right)
         let (final_svg_str) = str_concat(next_svg_str, rect_str)
         return render(
@@ -247,8 +244,12 @@ func grid_recurse{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt, ro
     return (grid_end=grid)
 end
 
-func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimension: felt) -> (svg_str : string):
+func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimension: felt, color: felt, bias: felt) -> (svg_str : string):
     alloc_locals
+
+    assert_not_zero(seed)
+    assert_not_zero(dimension)
+    assert_not_zero(bias)
     
     let (q_col, r_col) = unsigned_div_rem(dimension, 2)
     let col_max = q_col + r_col
@@ -258,7 +259,7 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimens
     let (local dict_start) = default_dict_new(default_value=0)
 
     let (dict_end) = init_dict(
-        seed=seed, n_steps=n_steps, max_steps=n_steps, dict=dict_start
+        seed=seed, color=color, bias=bias, n_steps=n_steps, max_steps=n_steps, dict=dict_start
     )
 
     let (finalized_dict_start, finalized_dict_end) = default_dict_finalize(dict_start, dict_end, 0)
@@ -282,10 +283,8 @@ func create_tokenURI{
 ) -> (
     json_str: string):
     alloc_locals
-
-    assert_not_zero(seed)
  
-    let (svg_str) = generate_character(seed=seed, dimension=8)
+    let (svg_str) = generate_character(seed=seed, dimension=8, color='#FBCB4A', bias=3)
 
     let (data_prefix_label) = get_label_location(dw_prefix)
     tempvar data_prefix = string(1, cast(data_prefix_label, felt*))

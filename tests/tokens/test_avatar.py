@@ -9,8 +9,6 @@ from starkware.crypto.signature.fast_pedersen_hash import pedersen_hash
 
 from utils.deployment import deploy
 
-DIMENSIONS = [5, 6, 7, 8, 9, 10, 11]
-ITERATIONS = 10
 
 @pytest.mark.asyncio
 async def test_generate_avatars():
@@ -20,22 +18,26 @@ async def test_generate_avatars():
     starknet = await Starknet.empty()
 
     avatar, avatar_class = await deploy(starknet, "src/fixtures/Avatar.cairo")
-
     body = ""
 
-    for i in DIMENSIONS:
-        body += html_h2(i)
-        for j in range(ITERATIONS):
+    dimensions = [7, 8, 9]  # avatar dimensions
+    iterations = 5          # number of avatars per dimension
+    color = "#FBCB4A"       # color of the avatar
+    bias = 3                # how much pixels of avatar is filled (>1)
+    for i in dimensions:
+        body += html_h2(i, color, bias)
+        for j in range(iterations):
             seed = int.from_bytes(os.urandom(16), byteorder="big")
-            character = await avatar.test_generate_character(seed=seed, dimension=i).invoke()
+            character = await avatar.test_generate_character(seed=seed, dimension=i, color=ascii_to_felt(color), bias=bias).invoke()
             recovered_svg = felt_array_to_ascii(character.result.tokenURI)
             body += recovered_svg.replace('\\"','\"')
-
 
     file = open("avatars_preview.html", "w")
     file.write(html_doc(raw(body)))
     file.close()
 
+def ascii_to_felt(ascii):
+    return int(ascii.encode('utf-8').hex(), 16)
 
 def felt_array_to_ascii(felt_array):
     ret = ""
@@ -48,8 +50,8 @@ def felt_to_ascii(felt):
     ascii_string = bytes_object.decode("ASCII")
     return ascii_string
 
-def html_h2(dim):
-    return f"<h2>{dim}x{dim}</h2>"
+def html_h2(dim, color, bias):
+    return f"<h2>Dimensions: {dim}x{dim} - Color: {color} - Bias: {bias}</h2>"
 
 def html_doc(body):
     return html(lang="en")(
