@@ -9,6 +9,11 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.squash_dict import squash_dict
+from starkware.cairo.common.default_dict import (
+    default_dict_new,
+    default_dict_finalize,
+)
+from starkware.cairo.common.dict import dict_write, dict_update, dict_read
 from starkware.cairo.common.math_cmp import is_le, is_nn
 from starkware.cairo.common.registers import get_label_location
 
@@ -68,13 +73,12 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     assert arr[1] = x_literal
     assert arr[2] = '\" y=\"'
     assert arr[3] = y_literal
-    assert arr[4] = '\" width=\"1\"'
-    assert arr[5] = 'height=\"1\"'
-    assert arr[6] = 'fill=\"'
-    assert arr[7] = svg_rect.fill
-    assert arr[8] = '\" />'
+    assert arr[4] = '\" width=\"1\" height=\"1\"'
+    assert arr[5] = 'fill=\"'
+    assert arr[6] = svg_rect.fill
+    assert arr[7] = '\" />'
 
-    return (string(9, arr))
+    return (string(8, arr))
 end
 
 func init_dict{range_check_ptr}(seed, n_steps, max_steps, dict : DictAccess*) -> (
@@ -84,21 +88,19 @@ func init_dict{range_check_ptr}(seed, n_steps, max_steps, dict : DictAccess*) ->
         return (dict=dict)
     end
 
-    let (prob, _) = unsigned_div_rem(seed, n_steps + 1)
-    let (_, event) = unsigned_div_rem(prob, 2)
+    let (prob, _) = unsigned_div_rem(seed, n_steps)
+    let (_, event) = unsigned_div_rem(prob, 3)
 
-    assert dict.key = max_steps - n_steps
+    let key = max_steps - n_steps
 
     if event == 1:
-        assert dict.prev_value = 1
-        assert dict.new_value = 1
+        dict_write{dict_ptr=dict}(key=key, new_value=1)
     else:
-        assert dict.prev_value = 0
-        assert dict.new_value = 0
+        dict_write{dict_ptr=dict}(key=key, new_value=0)
     end
 
     return init_dict(
-        seed=seed, n_steps=n_steps - 1, max_steps=max_steps, dict=dict + DictAccess.SIZE
+        seed=seed, n_steps=n_steps - 1, max_steps=max_steps, dict=dict
     )
 end
 
@@ -176,9 +178,11 @@ func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string,
         return (svg_str=svg_str)
     end
 
-    let cell : Cell* = grid + (Cell.SIZE * dict.key)
+    let key = n_steps - 1
+    let (local pixel) = dict_read{dict_ptr=dict}(key=key)
+    let cell : Cell* = grid + (Cell.SIZE * key)
 
-    if dict.prev_value == 0:
+    if pixel == 1:
         let fill = '#FBCB4A' # brand color
 
         let svg_rect_left = SvgRect(x=cell.col - 1, y=cell.row - 1, fill=fill)
@@ -191,11 +195,11 @@ func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string,
         let (rect_str : string) = str_from_svg_rect(svg_rect_right)
         let (final_svg_str) = str_concat(next_svg_str, rect_str)
         return render(
-            dict=dict + DictAccess.SIZE, grid=grid, svg_str=final_svg_str, dimension=dimension, n_steps=n_steps - 1
+            dict=dict, grid=grid, svg_str=final_svg_str, dimension=dimension, n_steps=n_steps - 1
         )
     else:
         return render(
-            dict=dict + DictAccess.SIZE, grid=grid, svg_str=svg_str, dimension=dimension, n_steps=n_steps - 1
+            dict=dict, grid=grid, svg_str=svg_str, dimension=dimension, n_steps=n_steps - 1
         )
     end
 end
@@ -245,32 +249,25 @@ end
 
 func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimension: felt) -> (svg_str : string):
     alloc_locals
-
-    let (local dict_start : DictAccess*) = alloc()
-    let (local squashed_dict : DictAccess*) = alloc()
-
-    let (q_steps, r_steps) = unsigned_div_rem((dimension * dimension), 2)
+    
     let (q_col, r_col) = unsigned_div_rem(dimension, 2)
-    let n_steps = q_steps + r_steps
     let col_max = q_col + r_col
     let row_max = dimension
+    let n_steps = col_max * dimension
+
+    let (local dict_start) = default_dict_new(default_value=0)
 
     let (dict_end) = init_dict(
         seed=seed, n_steps=n_steps, max_steps=n_steps, dict=dict_start
     )
 
-    let (squashed_dict_end : DictAccess*) = squash_dict(
-        dict_accesses=dict_start, dict_accesses_end=dict_end, squashed_dict=squashed_dict
-    )
-
-    assert squashed_dict_end - squashed_dict = n_steps *
-        DictAccess.SIZE
+    let (finalized_dict_start, finalized_dict_end) = default_dict_finalize(dict_start, dict_end, 0)
 
     let (grid : Cell*) = create_grid(row=row_max, col=col_max)
 
     let (header_str : string) = return_svg_header(dimension, dimension)
     let (render_str : string) = render(
-        dict=squashed_dict, grid=grid, svg_str=header_str, dimension=dimension, n_steps=n_steps
+        dict=finalized_dict_end, grid=grid, svg_str=header_str, dimension=dimension, n_steps=n_steps
     )
     let (close_str : string) = str_from_literal('</svg>')
     let (svg_str) = str_concat(render_str, close_str)

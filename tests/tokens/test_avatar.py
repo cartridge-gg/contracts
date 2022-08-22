@@ -9,8 +9,7 @@ from starkware.crypto.signature.fast_pedersen_hash import pedersen_hash
 
 from utils.deployment import deploy
 
-#DIMENSIONS = [5, 6, 7, 8, 9, 10, 11]
-DIMENSIONS = [11]
+DIMENSIONS = [5, 6, 7, 8, 9, 10, 11]
 ITERATIONS = 10
 
 @pytest.mark.asyncio
@@ -23,10 +22,9 @@ async def test_generate_avatars():
     avatar, avatar_class = await deploy(starknet, "src/fixtures/Avatar.cairo")
 
     body = ""
-    
 
     for i in DIMENSIONS:
-        body += html_h1(i)
+        body += html_h2(i)
         for j in range(ITERATIONS):
             seed = int.from_bytes(os.urandom(16), byteorder="big")
             character = await avatar.test_generate_character(seed=seed, dimension=i).invoke()
@@ -50,8 +48,8 @@ def felt_to_ascii(felt):
     ascii_string = bytes_object.decode("ASCII")
     return ascii_string
 
-def html_h1(str):
-    return f"<h1>{str}x{str}</h1>"
+def html_h2(dim):
+    return f"<h2>{dim}x{dim}</h2>"
 
 def html_doc(body):
     return html(lang="en")(
@@ -62,9 +60,9 @@ def html_doc(body):
                     background-color: #1E221F;
                 }
                 svg {
-                    margin: 10px;
+                    margin: 25px;
                 }
-                h1 {
+                h2 {
                     color: white;
                 }
             """)
