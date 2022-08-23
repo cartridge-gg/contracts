@@ -80,7 +80,14 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     return (string(8, arr))
 end
 
-func init_dict{range_check_ptr}(seed, color, bias, n_steps, max_steps, dict : DictAccess*) -> (
+func init_dict{range_check_ptr}(
+    seed : felt, 
+    color : felt, 
+    bias : felt, 
+    n_steps : felt, 
+    max_steps : felt, 
+    dict : DictAccess*
+) -> (
     dict : DictAccess*
 ):
     if n_steps == 0:
@@ -168,7 +175,13 @@ func grow{range_check_ptr}(cell_list : Cell*, n_steps, dict : DictAccess*) -> (
     )
 end
 
-func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string, dimension: felt, n_steps) -> (
+func render{range_check_ptr}(
+    dict : DictAccess*, 
+    grid : Cell*, 
+    svg_str : string, 
+    dimension : felt, 
+    n_steps : felt
+) -> (
     svg_str : string
 ):
     alloc_locals
@@ -201,18 +214,23 @@ func render{range_check_ptr}(dict : DictAccess*, grid : Cell*, svg_str : string,
     end
 end
 
-func create_grid{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt) -> (
+func create_grid{syscall_ptr : felt*, range_check_ptr}(row : felt, col : felt) -> (
     grid : Cell*
 ):
     alloc_locals
 
     let (local grid_start : Cell*) = alloc()
-    grid_recurse(row, col, row, grid_start)
+    grid_recurse(row_max=row, row=row, col=col, grid=grid_start)
 
     return(grid_start)
 end
 
-func grid_recurse{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt, row_max: felt, grid: Cell*) -> (
+func grid_recurse{syscall_ptr : felt*, range_check_ptr}(
+    row_max : felt, 
+    row : felt, 
+    col : felt, 
+    grid : Cell*
+) -> (
     grid_end : Cell*
 ):
     alloc_locals
@@ -224,18 +242,18 @@ func grid_recurse{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt, ro
     if row != 0:
         assert grid[0] = Cell(row=row, col=col)
         return grid_recurse(
+            row_max=row_max, 
             row=row - 1, 
             col=col, 
-            row_max=row_max, 
             grid=grid + Cell.SIZE)
     end
 
     if col != 1:
         assert grid[0] = Cell(row=row_max, col=col - 1)
         return grid_recurse(
+            row_max=row_max, 
             row=row_max - 1, 
             col=col - 1, 
-            row_max=row_max, 
             grid=grid + Cell.SIZE)
     end
 
@@ -244,7 +262,12 @@ func grid_recurse{syscall_ptr : felt*, range_check_ptr}(row: felt, col: felt, ro
     return (grid_end=grid)
 end
 
-func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimension: felt, color: felt, bias: felt) -> (svg_str : string):
+func generate_character{syscall_ptr : felt*, range_check_ptr}(
+    seed : felt, 
+    dimension : felt, 
+    color : felt, 
+    bias : felt
+) -> (svg_str : string):
     alloc_locals
 
     assert_not_zero(seed)
@@ -252,9 +275,11 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimens
     assert_not_zero(bias)
     
     let (q_col, r_col) = unsigned_div_rem(dimension, 2)
-    let col_max = q_col + r_col
-    let row_max = dimension
-    let n_steps = col_max * dimension
+    let col = q_col + r_col
+    let row = dimension
+    let n_steps = col * row
+
+    let (grid : Cell*) = create_grid(row=row, col=col)
 
     let (local dict_start) = default_dict_new(default_value=0)
 
@@ -264,8 +289,6 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimens
 
     let (finalized_dict_start, finalized_dict_end) = default_dict_finalize(dict_start, dict_end, 0)
 
-    let (grid : Cell*) = create_grid(row=row_max, col=col_max)
-
     let (header_str : string) = return_svg_header(dimension, dimension)
     let (render_str : string) = render(
         dict=finalized_dict_end, grid=grid, svg_str=header_str, dimension=dimension, n_steps=n_steps
@@ -274,8 +297,6 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(seed: felt, dimens
     let (svg_str) = str_concat(render_str, close_str)
     return (svg_str)
 end
-
-
 
 func create_tokenURI{
     syscall_ptr : felt*, 

@@ -20,10 +20,10 @@ async def test_generate_avatars():
     avatar, avatar_class = await deploy(starknet, "src/fixtures/Avatar.cairo")
     body = ""
 
-    dimensions = [7, 8, 9]  # avatar dimensions
+    dimensions = [8, 9, 10]  # avatar dimensions
     iterations = 5          # number of avatars per dimension
     color = "#FBCB4A"       # color of the avatar
-    bias = 3                # how much pixels of avatar is filled (>1)
+    bias = 3                # approx area filled: 2 ~ 50%, 3 ~ 33%, 4 ~ 25%...
     for i in dimensions:
         body += html_h2(i, color, bias)
         for j in range(iterations):
