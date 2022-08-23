@@ -72,7 +72,7 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     assert arr[1] = x_literal
     assert arr[2] = '\" y=\"'
     assert arr[3] = y_literal
-    assert arr[4] = '\" width=\"1\" height=\"1\"'
+    assert arr[4] = '\" width=\"1\" height=\"1\" '
     assert arr[5] = 'fill=\"'
     assert arr[6] = svg_rect.fill
     assert arr[7] = '\" />'
