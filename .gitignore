@@ -136,3 +136,5 @@ dmypy.json
 
 src/controller.cairo
 *.accounts.json
+
+avatars_preview.html
