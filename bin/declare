@@ -1,5 +1,5 @@
 #!/bin/bash
 set -eu
 
-nile declare --network goerli --alias account PluginAccount
+# nile declare --network goerli --alias account PluginAccount
 nile declare --network goerli --alias controller Controller

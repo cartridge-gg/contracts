@@ -72,7 +72,11 @@
                 "type": "felt"
             },
             {
-                "name": "public_key",
+                "name": "admin_key",
+                "type": "EcPoint"
+            },
+            {
+                "name": "device_key",
                 "type": "felt"
             }
         ],
@@ -83,33 +87,33 @@
     {
         "data": [
             {
-                "name": "public_key",
+                "name": "device_key",
                 "type": "felt"
             }
         ],
         "keys": [],
-        "name": "controller_add_public_key",
+        "name": "controller_add_device_key",
         "type": "event"
     },
     {
         "data": [
             {
-                "name": "public_key",
+                "name": "device_key",
                 "type": "felt"
             }
         ],
         "keys": [],
-        "name": "controller_remove_public_key",
+        "name": "controller_remove_device_key",
         "type": "event"
     },
     {
         "inputs": [
             {
-                "name": "pt",
+                "name": "admin_key",
                 "type": "EcPoint"
             },
             {
-                "name": "public_key",
+                "name": "device_key",
                 "type": "felt"
             }
         ],
@@ -137,22 +141,22 @@
     {
         "inputs": [
             {
-                "name": "new_public_key",
+                "name": "new_device_key",
                 "type": "felt"
             }
         ],
-        "name": "add_public_key",
+        "name": "add_device_key",
         "outputs": [],
         "type": "function"
     },
     {
         "inputs": [
             {
-                "name": "public_key",
+                "name": "device_key",
                 "type": "felt"
             }
         ],
-        "name": "remove_public_key",
+        "name": "remove_device_key",
         "outputs": [],
         "type": "function"
     },

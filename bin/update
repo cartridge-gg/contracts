@@ -1,0 +1,5 @@
+#!/bin/bash
+set -eu
+
+protostar update
+cd lib/cairo_webauthn && protostar update && cd ../..
