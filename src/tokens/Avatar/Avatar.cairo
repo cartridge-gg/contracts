@@ -122,8 +122,9 @@ end
 func transferFrom{pedersen_ptr : HashBuiltin*, syscall_ptr : felt*, range_check_ptr}(
     from_ : felt, to : felt, tokenId : Uint256
 ):
-    Pausable.assert_not_paused()
-    ERC721.transfer_from(from_, to, tokenId)
+    with_attr error_message("Soulbound NFT cannot be transferred"):
+        assert 0 = 1
+    end
     return ()
 end
 
@@ -131,8 +132,9 @@ end
 func safeTransferFrom{pedersen_ptr : HashBuiltin*, syscall_ptr : felt*, range_check_ptr}(
     from_ : felt, to : felt, tokenId : Uint256, data_len : felt, data : felt*
 ):
-    Pausable.assert_not_paused()
-    ERC721.safe_transfer_from(from_, to, tokenId, data_len, data)
+    with_attr error_message("Soulbound NFT cannot be transferred"):
+        assert 0 = 1
+    end
     return ()
 end
 
