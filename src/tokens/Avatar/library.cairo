@@ -305,7 +305,7 @@ func create_tokenURI{
     json_str: string):
     alloc_locals
  
-    let (svg_str) = generate_character(seed=seed, dimension=8, color='#FBCB4A', bias=3)
+    let (svg_str) = generate_character(seed=seed, dimension=8, color='#FFF', bias=3)
 
     let (data_prefix_label) = get_label_location(dw_prefix)
     tempvar data_prefix = string(1, cast(data_prefix_label, felt*))
@@ -314,7 +314,7 @@ func create_tokenURI{
     tempvar data_xml_header = string(2, cast(data_xml_header_label, felt*))
 
     let (data_content_label) = get_label_location(dw_content)
-    tempvar data_content = string(4, cast(data_content_label, felt*))
+    tempvar data_content = string(5, cast(data_content_label, felt*))
 
     let (data_end_label) = get_label_location(dw_end)
     tempvar data_end = string(1, cast(data_end_label, felt*))
@@ -330,13 +330,9 @@ func create_tokenURI{
     dw 'data:application/json,'
 
     dw_content:
-    # TODO: official name and description
-    # dw '{"name":"Cartridge '
-    # dw 'Profile Avatar",'
-    # dw '"description":"A '
-    # dw 'progressive Avatar NFT",'
-    dw '{"name":"test",'
-    dw '"description":"test",'
+    dw '{"name":"Cartridge Avatar",'
+    dw '"description":"Starknet '
+    dw 'experience tracker",'
     dw '"image":'
     dw '"data:image/svg+xml,'
 
