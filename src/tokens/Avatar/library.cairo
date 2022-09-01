@@ -29,18 +29,22 @@ struct SvgRect:
     member fill : felt
 end
 
+const SCALE = 10
+const PADDING = 4
+
 ###########################
 
-func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
+func return_svg_header{range_check_ptr}(w : felt, h : felt, bg: felt, border: felt) -> (str : string):
     alloc_locals
 
     # Format:
     # <svg width={w*scale} height={h*scale} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" shape-rendering="crispEdges">
-    let scale = 10
-    let (w_literal : felt) = literal_from_number(w * scale)
-    let (h_literal : felt) = literal_from_number(h * scale)
-    let (vb_w_literal : felt) = literal_from_number(w)
-    let (vb_h_literal : felt) = literal_from_number(h)
+    let full_w = PADDING * 2 + w
+    let full_h = PADDING * 2 + h
+    let (w_literal : felt) = literal_from_number(full_w * SCALE)
+    let (h_literal : felt) = literal_from_number(full_h * SCALE)
+    let (vb_w_literal : felt) = literal_from_number(full_w)
+    let (vb_h_literal : felt) = literal_from_number(full_h)
 
     let (arr) = alloc()
     assert arr[0] = '<svg width=\"'
@@ -52,10 +56,14 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt) -> (str : string):
     assert arr[6] = vb_w_literal
     assert arr[7] = ' '
     assert arr[8] = vb_h_literal
-    assert arr[9] = '\" shape-rendering='
-    assert arr[10] = '\"crispEdges\">'
+    assert arr[9] = '\" style=\"background-color:'
+    assert arr[10] = bg
+    assert arr[11] = '; border: 1px solid '
+    assert arr[12] = border
+    assert arr[13] = '\" shape-rendering='
+    assert arr[14] = '\"crispEdges\">'
 
-    return (string(11, arr))
+    return (string(15, arr))
 end
 
 func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
@@ -64,8 +72,8 @@ func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
     # Format:
     # <rect x="<x>" y="<y>" w="1" h="1" attribute_0="<attribute_0>" ... />
 
-    let (x_literal : felt) = literal_from_number(svg_rect.x)
-    let (y_literal : felt) = literal_from_number(svg_rect.y)
+    let (x_literal : felt) = literal_from_number(svg_rect.x + PADDING)
+    let (y_literal : felt) = literal_from_number(svg_rect.y + PADDING)
 
     let (arr) = alloc()
     assert arr[0] = '<rect x=\"'
@@ -264,9 +272,11 @@ end
 
 func generate_character{syscall_ptr : felt*, range_check_ptr}(
     seed : felt, 
+    bias : felt,
     dimension : felt, 
     color : felt, 
-    bias : felt
+    bg_color: felt,
+    border_color: felt,
 ) -> (svg_str : string):
     alloc_locals
 
@@ -289,7 +299,7 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(
 
     let (finalized_dict_start, finalized_dict_end) = default_dict_finalize(dict_start, dict_end, 0)
 
-    let (header_str : string) = return_svg_header(dimension, dimension)
+    let (header_str : string) = return_svg_header(dimension, dimension, bg_color, border_color)
     let (render_str : string) = render(
         dict=finalized_dict_end, grid=grid, svg_str=header_str, dimension=dimension, n_steps=n_steps
     )
@@ -305,7 +315,7 @@ func create_tokenURI{
     json_str: string):
     alloc_locals
  
-    let (svg_str) = generate_character(seed=seed, dimension=8, color='#FFF', bias=3)
+    let (svg_str) = generate_character(seed=seed, bias=3, dimension=8, color='#FFF', bg_color='#1E221F', border_color='#FFF')
 
     let (data_prefix_label) = get_label_location(dw_prefix)
     tempvar data_prefix = string(1, cast(data_prefix_label, felt*))
