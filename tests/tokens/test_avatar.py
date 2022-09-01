@@ -20,15 +20,23 @@ async def test_generate_avatars():
     avatar, avatar_class = await deploy(starknet, "src/fixtures/Avatar.cairo")
     body = ""
 
-    dimensions = [8, 9, 10]  # avatar dimensions
+    dimensions = [8]        # avatar dimensions
     iterations = 5          # number of avatars per dimension
-    color = "#FBCB4A"       # color of the avatar
+    color = "#FFF"          # color of the avatar
+    bg_color = "1E221F"     # background color of avatar
+    border_color = "#FFF"   # border
     bias = 3                # approx area filled: 2 ~ 50%, 3 ~ 33%, 4 ~ 25%...
     for i in dimensions:
         body += html_h2(i, color, bias)
         for j in range(iterations):
             seed = int.from_bytes(os.urandom(16), byteorder="big")
-            character = await avatar.test_generate_character(seed=seed, dimension=i, color=ascii_to_felt(color), bias=bias).invoke()
+            character = await avatar.test_generate_character(seed=seed, 
+                bias=bias, 
+                dimension=i, 
+                color=ascii_to_felt(color), 
+                bg_color=ascii_to_felt(bg_color), 
+                border_color=ascii_to_felt(border_color)).invoke()
+
             recovered_svg = felt_array_to_ascii(character.result.tokenURI)
             body += recovered_svg.replace('\\"','\"')
 
@@ -59,7 +67,7 @@ def html_doc(body):
             h("title")("Avatars Preview"),
             h("style")("""
                 html {
-                    background-color: #1E221F;
+                    background-color: #0F1410;
                 }
                 svg {
                     margin: 25px;
