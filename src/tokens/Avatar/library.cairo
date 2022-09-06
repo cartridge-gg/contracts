@@ -34,7 +34,7 @@ const PADDING = 4
 
 ###########################
 
-func return_svg_header{range_check_ptr}(w : felt, h : felt, bg: felt, border: felt) -> (str : string):
+func return_svg_header{range_check_ptr}(w : felt, h : felt, bg_color: felt) -> (str : string):
     alloc_locals
 
     # Format:
@@ -56,14 +56,17 @@ func return_svg_header{range_check_ptr}(w : felt, h : felt, bg: felt, border: fe
     assert arr[6] = vb_w_literal
     assert arr[7] = ' '
     assert arr[8] = vb_h_literal
-    assert arr[9] = '\" style=\"background-color:'
-    assert arr[10] = bg
-    assert arr[11] = '; border: 1px solid '
-    assert arr[12] = border
-    assert arr[13] = '\" shape-rendering='
-    assert arr[14] = '\"crispEdges\">'
+    assert arr[9] = '\" shape-rendering='
+    assert arr[10] = '\"crispEdges\">'
+    assert arr[11] = '<rect x=\"0\" y=\"0\" width=\"'
+    assert arr[12] = vb_w_literal
+    assert arr[13] = '\" height=\"'
+    assert arr[14] = vb_h_literal
+    assert arr[15] = '\" fill=\"'
+    assert arr[16] = bg_color
+    assert arr[17] = '\" />'
 
-    return (string(15, arr))
+    return (string(18, arr))
 end
 
 func str_from_svg_rect{range_check_ptr}(svg_rect : SvgRect) -> (str : string):
@@ -276,7 +279,6 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(
     dimension : felt, 
     color : felt, 
     bg_color: felt,
-    border_color: felt,
 ) -> (svg_str : string):
     alloc_locals
 
@@ -299,7 +301,7 @@ func generate_character{syscall_ptr : felt*, range_check_ptr}(
 
     let (finalized_dict_start, finalized_dict_end) = default_dict_finalize(dict_start, dict_end, 0)
 
-    let (header_str : string) = return_svg_header(dimension, dimension, bg_color, border_color)
+    let (header_str : string) = return_svg_header(dimension, dimension, bg_color)
     let (render_str : string) = render(
         dict=finalized_dict_end, grid=grid, svg_str=header_str, dimension=dimension, n_steps=n_steps
     )
@@ -315,7 +317,7 @@ func create_tokenURI{
     json_str: string):
     alloc_locals
  
-    let (svg_str) = generate_character(seed=seed, bias=3, dimension=8, color='#FFF', bg_color='#1E221F', border_color='#FFF')
+    let (svg_str) = generate_character(seed=seed, bias=3, dimension=8, color='#FFF', bg_color='#1E221F')
 
     let (data_prefix_label) = get_label_location(dw_prefix)
     tempvar data_prefix = string(1, cast(data_prefix_label, felt*))
