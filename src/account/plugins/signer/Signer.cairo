@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 
 %lang starknet
 
@@ -8,90 +8,72 @@ from starkware.starknet.common.syscalls import get_tx_info
 from openzeppelin.security.initializable.library import Initializable
 from src.account.plugins.signer.library import Signer
 
-struct CallArray:
-    member to: felt
-    member selector: felt
-    member data_offset: felt
-    member data_len: felt
-end
+struct CallArray {
+    to: felt,
+    selector: felt,
+    data_offset: felt,
+    data_len: felt,
+}
 
 @external
-func initialize{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(public_key: felt):
-    Initializable.initialized()
-    Signer.initializer(public_key)
-    return ()
-end
+func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(public_key: felt) {
+    Initializable.initialized();
+    Signer.initializer(public_key);
+    return ();
+}
 
-#
-# Getters
-#
+//
+// Getters
+//
 
 @view
-func get_public_key{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (res: felt):
-    let (res) = Signer.get_public_key()
-    return (res=res)
-end
+func get_public_key{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    res: felt
+) {
+    let (res) = Signer.get_public_key();
+    return (res=res);
+}
 
-#
-# Setters
-#
+//
+// Setters
+//
 
 @external
-func set_public_key{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(new_public_key: felt):
-    Signer.set_public_key(new_public_key)
-    return ()
-end
+func set_public_key{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    new_public_key: felt
+) {
+    Signer.set_public_key(new_public_key);
+    return ();
+}
 
-#
-# Business logic
-#
+//
+// Business logic
+//
 
 @view
 func is_valid_signature{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        ecdsa_ptr: SignatureBuiltin*
-    }(
-        hash: felt,
-        signature_len: felt,
-        signature: felt*
-    ) -> (is_valid: felt):
-    let (is_valid) = Signer.is_valid_signature(hash, signature_len, signature)
-    return (is_valid=is_valid)
-end
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, ecdsa_ptr: SignatureBuiltin*
+}(hash: felt, signature_len: felt, signature: felt*) -> (is_valid: felt) {
+    let (is_valid) = Signer.is_valid_signature(hash, signature_len, signature);
+    return (is_valid=is_valid);
+}
 
 @external
 func validate{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        ecdsa_ptr: SignatureBuiltin*
-    }(
+    syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, ecdsa_ptr: SignatureBuiltin*
+}(
     plugin_data_len: felt,
     plugin_data: felt*,
     call_array_len: felt,
     call_array: CallArray*,
     calldata_len: felt,
-    calldata: felt*
-    ):
-    alloc_locals
+    calldata: felt*,
+) {
+    alloc_locals;
 
-    # get the tx info
-    let (tx_info) = get_tx_info()
-    is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature)
+    // get the tx info
+    let (tx_info) = get_tx_info();
+    is_valid_signature(tx_info.transaction_hash, tx_info.signature_len, tx_info.signature);
 
-    return()
-end
+    return ();
+}
