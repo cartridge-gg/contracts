@@ -20,7 +20,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     software-properties-common && \
    rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install cairo-nile==0.8.0 cairo-lang==0.9.1 webauthn==1.6.0 tinyhtml==1.2.0
+RUN pip3 install cairo-nile==0.9.1 cairo-lang==0.10.0 webauthn==1.6.0 tinyhtml==1.2.0
 
 ENV CAIRO_PATH="lib/cairo_contracts/src"
 
