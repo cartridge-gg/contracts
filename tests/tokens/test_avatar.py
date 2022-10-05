@@ -23,8 +23,7 @@ async def test_generate_avatars():
     dimensions = [8]        # avatar dimensions
     iterations = 5          # number of avatars per dimension
     color = "#FFF"          # color of the avatar
-    bg_color = "1E221F"     # background color of avatar
-    border_color = "#FFF"   # border
+    bg_color = "#1E221F"     # background color of avatar
     bias = 3                # approx area filled: 2 ~ 50%, 3 ~ 33%, 4 ~ 25%...
     for i in dimensions:
         body += html_h2(i, color, bias)
@@ -34,8 +33,7 @@ async def test_generate_avatars():
                 bias=bias, 
                 dimension=i, 
                 color=ascii_to_felt(color), 
-                bg_color=ascii_to_felt(bg_color), 
-                border_color=ascii_to_felt(border_color)).execute()
+                bg_color=ascii_to_felt(bg_color)).execute()
 
             recovered_svg = felt_array_to_ascii(character.result.tokenURI)
             body += recovered_svg.replace('\\"','\"')
