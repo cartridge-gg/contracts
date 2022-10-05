@@ -35,7 +35,7 @@ async def test_generate_avatars():
                 dimension=i, 
                 color=ascii_to_felt(color), 
                 bg_color=ascii_to_felt(bg_color), 
-                border_color=ascii_to_felt(border_color)).invoke()
+                border_color=ascii_to_felt(border_color)).execute()
 
             recovered_svg = felt_array_to_ascii(character.result.tokenURI)
             body += recovered_svg.replace('\\"','\"')
