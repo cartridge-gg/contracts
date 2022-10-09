@@ -26,18 +26,20 @@ struct SvgRect {
     fill: felt,
 }
 
-const SCALE = 10;
+const SCALE = 5;
 const PADDING = 4;
+const MAX_DIM = 14;
+const BASE_DIM = 6;
 
 //##########################
 
-func return_svg_header{range_check_ptr}(w: felt, h: felt, bg_color: felt) -> (str: string) {
+func return_svg_header{range_check_ptr}(bg_color: felt) -> (str: string) {
     alloc_locals;
 
     // Format:
     // <svg width={w*scale} height={h*scale} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" shape-rendering="crispEdges">
-    let full_w = PADDING * 2 + w;
-    let full_h = PADDING * 2 + h;
+    let full_w = PADDING * 2 + MAX_DIM;
+    let full_h = PADDING * 2 + MAX_DIM;
     let (w_literal: felt) = literal_from_number(full_w * SCALE);
     let (h_literal: felt) = literal_from_number(full_h * SCALE);
     let (vb_w_literal: felt) = literal_from_number(full_w);
@@ -89,7 +91,7 @@ func str_from_svg_rect{range_check_ptr}(svg_rect: SvgRect) -> (str: string) {
 }
 
 func init_dict{range_check_ptr}(
-    seed: felt, color: felt, bias: felt, n_steps: felt, max_steps: felt, dict: DictAccess*
+    seed: felt, bias: felt, n_steps: felt, max_steps: felt, dict: DictAccess*
 ) -> (dict: DictAccess*) {
     if (n_steps == 0) {
         return (dict=dict);
@@ -97,83 +99,87 @@ func init_dict{range_check_ptr}(
 
     let (prob, _) = unsigned_div_rem(seed, n_steps);
     let (_, event) = unsigned_div_rem(prob, bias);
-
     let key = max_steps - n_steps;
-
+    
     if (event == 1) {
-        dict_write{dict_ptr=dict}(key=key, new_value=color);
+        dict_write{dict_ptr=dict}(key=key, new_value=1);
     } else {
         dict_write{dict_ptr=dict}(key=key, new_value=0);
     }
 
     return init_dict(
-        seed=seed, color=color, bias=bias, n_steps=n_steps - 1, max_steps=max_steps, dict=dict
+        seed=seed, bias=bias, n_steps=n_steps - 1, max_steps=max_steps, dict=dict
     );
 }
 
-func num_neighbors{range_check_ptr}(cell_list: Cell*, n_steps, dict: DictAccess*) -> (num: felt) {
-    alloc_locals;
+func colors{range_check_ptr}() -> (primary: felt*, accent: felt*, size: felt) {
+    let (pri_addr) = get_label_location(pri_start);
+    let (acc_addr) = get_label_location(acc_start);
 
-    local above;
-    local below;
-    local left;
-    local right;
+    return (primary=cast(pri_addr, felt*), accent=cast(acc_addr, felt*), size=5);
 
-    let check_above = is_le(n_steps, 3);
-    if (check_above != 0) {
-        let cell: DictAccess* = dict + (DictAccess.SIZE * 4);
-        above = cell.prev_value;
-    }
+    pri_start:
+    dw '#FBCB4A';
+    dw '#A7E7A7';
+    dw '#FBCB4A';
+    dw '#7563A3';
+    dw '#73C4FF';
 
-    let check_below = is_le(28, n_steps);
-    if (check_below != 0) {
-        let cell: DictAccess* = dict - (DictAccess.SIZE * 4);
-        below = cell.prev_value;
-    }
-
-    let (_, x) = unsigned_div_rem(n_steps, 4);
-
-    let check_left = is_le(0, x);
-    if (check_left != 0) {
-        let cell: DictAccess* = dict - DictAccess.SIZE;
-        left = cell.prev_value;
-    }
-
-    let check_right = is_le(x, 3);
-    if (check_right != 0) {
-        let cell: DictAccess* = dict + DictAccess.SIZE;
-        right = cell.prev_value;
-    }
-
-    let n = above + below + left + right;
-    return (num=n);
+    acc_start: 
+    dw '#ED9D92';
+    dw '#CAF1CA';
+    dw '#FDE092';
+    dw '#AD93EF';
+    dw '#C8E8FF';
 }
 
-func grow{range_check_ptr}(cell_list: Cell*, n_steps, dict: DictAccess*) -> (dict: DictAccess*) {
-    if (n_steps == 0) {
-        return (dict=dict);
+func random_color{range_check_ptr}(
+    cell: Cell*, seed: felt, n_steps: felt
+) -> (color: felt) {
+    alloc_locals;
+
+    let (primary, accent, size) = colors();
+    let (_, idx) = unsigned_div_rem(seed, size);
+
+    let (prob, _) = unsigned_div_rem(seed, n_steps);
+    let (_, color_event) = unsigned_div_rem(prob, 2); // ~50%
+    let (_, primary_event) = unsigned_div_rem(prob, 3); // ~33%
+
+    let (contains) = dim_contains(BASE_DIM, cell);
+
+    if(contains != 0) {
+        return (color='#fff');
+    } 
+
+    if(color_event == 0) {
+        return (color='#fff');
     }
 
-    let (prob, _) = unsigned_div_rem(0, n_steps + 1);
-    let (_, event) = unsigned_div_rem(prob, 2);
+    if(primary_event == 0) {
+        return (color=accent[idx]);
+    } 
 
-    assert dict.key = 32 - n_steps;
+    return (color=primary[idx]);
+}
 
-    if (event == 0) {
-        assert dict.prev_value = 1;
-        assert dict.new_value = 1;
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        assert dict.prev_value = 0;
-        assert dict.new_value = 0;
-        tempvar range_check_ptr = range_check_ptr;
+func dim_contains{range_check_ptr}(
+    dim: felt, cell: Cell*
+) -> (contains: felt) {
+
+    let (margin, _) = unsigned_div_rem(MAX_DIM - dim, 2);
+    let side = is_le(margin, cell.col - 1);
+    let top = is_le(margin, cell.row - 1);
+    let bottom = is_le(cell.row - 1, margin + dim - 1);
+
+    if(side !=0 and bottom !=0 and top != 0) {
+        return (contains=1);
     }
 
-    return grow(cell_list=cell_list + Cell.SIZE, n_steps=n_steps - 1, dict=dict + DictAccess.SIZE);
+    return (contains=0);
 }
 
 func render{range_check_ptr}(
-    dict: DictAccess*, grid: Cell*, svg_str: string, dimension: felt, n_steps: felt
+    dict: DictAccess*, render_dim: felt, grid: Cell*, seed: felt, svg_str: string, n_steps: felt
 ) -> (svg_str: string) {
     alloc_locals;
 
@@ -182,27 +188,29 @@ func render{range_check_ptr}(
     }
 
     let key = n_steps - 1;
-    let (local color) = dict_read{dict_ptr=dict}(key=key);
+    let (local event) = dict_read{dict_ptr=dict}(key=key);
     let cell: Cell* = grid + (Cell.SIZE * key);
-
-    if (color != 0) {
+    let (contains) = dim_contains(render_dim, cell);
+    
+    if (event != 0 and contains != 0) {
+        let (color) = random_color(cell, seed, n_steps);
         let svg_rect_left = SvgRect(x=cell.col - 1, y=cell.row - 1, fill=color);
         let (rect_str: string) = str_from_svg_rect(svg_rect_left);
         let (next_svg_str) = str_concat(svg_str, rect_str);
 
-        let mirror_x = (dimension + 1) - cell.col;
+        let mirror_x = (MAX_DIM + 1) - cell.col;
 
         let svg_rect_right = SvgRect(x=mirror_x - 1, y=cell.row - 1, fill=color);
         let (rect_str: string) = str_from_svg_rect(svg_rect_right);
         let (final_svg_str) = str_concat(next_svg_str, rect_str);
         return render(
-            dict=dict, grid=grid, svg_str=final_svg_str, dimension=dimension, n_steps=n_steps - 1
+            dict=dict, render_dim=render_dim, grid=grid, seed=seed, svg_str=final_svg_str, n_steps=n_steps - 1
         );
-    } else {
-        return render(
-            dict=dict, grid=grid, svg_str=svg_str, dimension=dimension, n_steps=n_steps - 1
-        );
-    }
+    } 
+
+    return render(
+        dict=dict, render_dim=render_dim, grid=grid, seed=seed, svg_str=svg_str, n_steps=n_steps - 1
+    );
 }
 
 func create_grid{syscall_ptr: felt*, range_check_ptr}(row: felt, col: felt) -> (grid: Cell*) {
@@ -239,17 +247,16 @@ func grid_recurse{syscall_ptr: felt*, range_check_ptr}(
 }
 
 func generate_character{syscall_ptr: felt*, range_check_ptr}(
-    seed: felt, bias: felt, dimension: felt, color: felt, bg_color: felt
+    seed: felt, render_dim: felt, bias: felt, p_color: felt, s_color: felt, bg_color: felt
 ) -> (svg_str: string) {
     alloc_locals;
 
     assert_not_zero(seed);
-    assert_not_zero(dimension);
     assert_not_zero(bias);
 
-    let (q_col, r_col) = unsigned_div_rem(dimension, 2);
+    let (q_col, r_col) = unsigned_div_rem(MAX_DIM, 2);
     let col = q_col + r_col;
-    let row = dimension;
+    let row = MAX_DIM;
     let n_steps = col * row;
 
     let (grid: Cell*) = create_grid(row=row, col=col);
@@ -257,14 +264,14 @@ func generate_character{syscall_ptr: felt*, range_check_ptr}(
     let (local dict_start) = default_dict_new(default_value=0);
 
     let (dict_end) = init_dict(
-        seed=seed, color=color, bias=bias, n_steps=n_steps, max_steps=n_steps, dict=dict_start
+        seed=seed, bias=bias, n_steps=n_steps, max_steps=n_steps, dict=dict_start
     );
 
     let (finalized_dict_start, finalized_dict_end) = default_dict_finalize(dict_start, dict_end, 0);
 
-    let (header_str: string) = return_svg_header(dimension, dimension, bg_color);
+    let (header_str: string) = return_svg_header(bg_color);
     let (render_str: string) = render(
-        dict=finalized_dict_end, grid=grid, svg_str=header_str, dimension=dimension, n_steps=n_steps
+        dict=finalized_dict_end, render_dim=render_dim ,grid=grid, seed=seed, svg_str=header_str, n_steps=n_steps
     );
     let (close_str: string) = str_from_literal('</svg>');
     let (svg_str) = str_concat(render_str, close_str);
@@ -275,7 +282,7 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(seed: felt) -> (json_s
     alloc_locals;
 
     let (svg_str) = generate_character(
-        seed=seed, bias=3, dimension=8, color='#FFF', bg_color='#1E221F'
+        seed=seed, render_dim=5, bias=3, p_color='#FFF', s_color='#FFF', bg_color='#1E221F'
     );
 
     let (data_prefix_label) = get_label_location(dw_prefix);
