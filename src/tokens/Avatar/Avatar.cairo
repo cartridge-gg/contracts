@@ -13,6 +13,7 @@ from openzeppelin.access.ownable.library import Ownable
 from src.tokens.Avatar.library import create_tokenURI
 from src.util.str import string, str_concat, str_from_literal
 
+
 //
 // Constructor
 //
