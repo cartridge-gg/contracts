@@ -10,7 +10,7 @@ from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_write, dict_update, dict_read
-from starkware.cairo.common.math_cmp import is_le, is_nn
+from starkware.cairo.common.math_cmp import is_le, is_nn, is_in_range
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.bool import TRUE, FALSE
 
@@ -29,8 +29,9 @@ struct SvgRect {
 
 const SCALE = 5;
 const PADDING = 4;
-const MAX_DIM = 14;
-const BASE_DIM = 6;
+const MAX_ROW = 14;
+const MAX_COL = 7;
+const MAX_STEPS = MAX_ROW * MAX_COL;
 
 //##########################
 
@@ -39,8 +40,8 @@ func return_svg_header{range_check_ptr}(bg_color: felt) -> (str: string) {
 
     // Format:
     // <svg width={w*scale} height={h*scale} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" shape-rendering="crispEdges">
-    let full_w = PADDING * 2 + MAX_DIM;
-    let full_h = PADDING * 2 + MAX_DIM;
+    let full_w = PADDING * 2 + MAX_ROW;
+    let full_h = PADDING * 2 + MAX_ROW;
     let (w_literal: felt) = literal_from_number(full_w * SCALE);
     let (h_literal: felt) = literal_from_number(full_h * SCALE);
     let (vb_w_literal: felt) = literal_from_number(full_w);
@@ -92,15 +93,16 @@ func str_from_svg_rect{range_check_ptr}(svg_rect: SvgRect) -> (str: string) {
 }
 
 func init_dict{range_check_ptr}(
-    seed: felt, bias: felt, n_steps: felt, max_steps: felt, dict: DictAccess*
+    seed: felt, bias: felt, n_steps: felt,  dict: DictAccess*
 ) -> (dict: DictAccess*) {
+
     if (n_steps == 0) {
         return (dict=dict);
     }
 
     let (prob, _) = unsigned_div_rem(seed, n_steps);
     let (_, event) = unsigned_div_rem(prob, bias);
-    let key = max_steps - n_steps;
+    let key = MAX_STEPS - n_steps;
     
     if (event == 1) {
         dict_write{dict_ptr=dict}(key=key, new_value=1);
@@ -109,8 +111,104 @@ func init_dict{range_check_ptr}(
     }
 
     return init_dict(
-        seed=seed, bias=bias, n_steps=n_steps - 1, max_steps=max_steps, dict=dict
+        seed=seed, bias=bias, n_steps=n_steps - 1, dict=dict
     );
+}
+
+func check_above{range_check_ptr}(
+    n_steps: felt, dict: DictAccess*
+) -> (above: felt, dict: DictAccess*) {
+
+    let check = is_le(MAX_COL, n_steps);
+    if(check != 0) {
+        let (above) = dict_read{dict_ptr=dict}(key=n_steps - MAX_COL);
+        return (above=above, dict=dict);
+    }
+
+    return (above=0, dict=dict);
+}
+
+func check_below{range_check_ptr}(
+    n_steps: felt, dict: DictAccess*
+) -> (below: felt, dict: DictAccess*) {
+
+    let check = is_le(n_steps, MAX_STEPS - MAX_COL);
+    if(check != 0) {
+        let (below) = dict_read{dict_ptr=dict}(key=n_steps + MAX_COL);
+        return (below=below, dict=dict);
+    }
+
+    return (below=0, dict=dict);
+}
+
+func check_left{range_check_ptr}(
+    n_steps: felt, dict: DictAccess*
+) -> (left: felt, dict: DictAccess*) {
+
+    let (_, x) = unsigned_div_rem(n_steps + MAX_COL, MAX_COL);
+    if(x != 0) {
+        let (left) = dict_read{dict_ptr=dict}(key=n_steps - 1);
+        return (left=left, dict=dict);
+    }
+
+    return (left=0, dict=dict);
+}
+
+func check_right{range_check_ptr}(
+    n_steps: felt, dict: DictAccess*
+) -> (right: felt, dict: DictAccess*) {
+
+    let (_, x) = unsigned_div_rem(n_steps + 1, MAX_COL);
+    if(x != 0) {
+        let (right) = dict_read{dict_ptr=dict}(key=n_steps + 1);
+        return (right=right, dict=dict);
+    }
+
+    return (right=0, dict=dict);
+}
+
+func num_neighbors{range_check_ptr}(
+    n_steps: felt, dict: DictAccess*
+) -> (num: felt, dict: DictAccess*) {
+    alloc_locals;
+
+    let (above, dict) = check_above(n_steps=n_steps, dict=dict);
+    let (below, dict) = check_below(n_steps=n_steps, dict=dict);
+    let (left, dict) = check_left(n_steps=n_steps, dict=dict);
+    let (right, dict) = check_right(n_steps=n_steps, dict=dict);
+
+    return(num=above + below + left + right, dict=dict);
+}
+
+func evolve{range_check_ptr}(
+    n_steps: felt, dict: DictAccess*
+) -> (dict: DictAccess*) {
+    if (n_steps == MAX_STEPS) {
+        return (dict=dict);
+    }
+
+    let (num, dict) = num_neighbors(n_steps=n_steps, dict=dict);
+    let (alive) = dict_read{dict_ptr=dict}(key=n_steps);
+
+    if(alive == TRUE) {
+        let continue = is_in_range(num, 2, 4);
+
+        if(continue == TRUE) {
+            return evolve(n_steps=n_steps + 1, dict=dict);
+        }
+
+        dict_write{dict_ptr=dict}(key=n_steps, new_value=0);
+        return evolve(n_steps=n_steps + 1, dict=dict);
+    } else {
+        let rebirth = is_le(num, 1);
+
+        if(rebirth == TRUE) {
+            dict_write{dict_ptr=dict}(key=n_steps, new_value=1);
+            return evolve(n_steps=n_steps + 1, dict=dict);
+        }
+
+        return evolve(n_steps=n_steps + 1, dict=dict);
+    }
 }
 
 func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt) {
@@ -146,11 +244,11 @@ func random_color{range_check_ptr}(
     let (_, color_event) = unsigned_div_rem(prob, 5); // ~20%
     let (_, primary_event) = unsigned_div_rem(prob, 3); // ~33%
 
-    let (contains) = dim_contains(BASE_DIM, cell);
+    // let (contains) = dim_contains(BASE_DIM, cell);
     
-    if(contains == TRUE) {
-        return (color='#fff');
-    } 
+    // if(contains == TRUE) {
+    //     return (color='#fff');
+    // } 
 
     if(color_event == 0) {
         return (color='#fff');
@@ -166,7 +264,7 @@ func dim_contains{range_check_ptr}(
     dim: felt, cell: Cell*
 ) -> (contains: felt) {
 
-    let (padding, _) = unsigned_div_rem(MAX_DIM - dim, 2);
+    let (padding, _) = unsigned_div_rem(MAX_ROW - dim, 2);
     let side = is_le(padding, cell.col - 1);
     let top = is_le(padding, cell.row - 1);
     let bottom = is_le(cell.row - 1, padding + dim - 1);
@@ -199,7 +297,7 @@ func render{range_check_ptr}(
         let (rect_str: string) = str_from_svg_rect(svg_rect_left);
         let (next_svg_str) = str_concat(svg_str, rect_str);
 
-        let mirror_x = (MAX_DIM + 1) - cell.col;
+        let mirror_x = (MAX_ROW + 1) - cell.col;
 
         let svg_rect_right = SvgRect(x=mirror_x - 1, y=cell.row - 1, fill=color);
         let (rect_str: string) = str_from_svg_rect(svg_rect_right);
@@ -255,9 +353,9 @@ func generate_character{syscall_ptr: felt*, range_check_ptr}(
     assert_not_zero(seed);
     assert_not_zero(bias);
 
-    let (q_col, r_col) = unsigned_div_rem(MAX_DIM, 2);
+    let (q_col, r_col) = unsigned_div_rem(MAX_ROW, 2);
     let col = q_col + r_col;
-    let row = MAX_DIM;
+    let row = MAX_ROW;
     let n_steps = col * row;
 
     let (grid: Cell*) = create_grid(row=row, col=col);
@@ -265,8 +363,10 @@ func generate_character{syscall_ptr: felt*, range_check_ptr}(
     let (local dict_start) = default_dict_new(default_value=0);
 
     let (dict_end) = init_dict(
-        seed=seed, bias=bias, n_steps=n_steps, max_steps=n_steps, dict=dict_start
+        seed=seed, bias=bias, n_steps=MAX_STEPS, dict=dict_start
     );
+
+    let (dict_end) = evolve(n_steps=0, dict=dict_end);
 
     let (finalized_dict_start, finalized_dict_end) = default_dict_finalize(dict_start, dict_end, 0);
 
@@ -283,7 +383,7 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(seed: felt) -> (json_s
     alloc_locals;
 
     let (svg_str) = generate_character(
-        seed=seed, dimension=BASE_DIM, bias=3, bg_color='#1E221F'
+        seed=seed, dimension=6, bias=3, bg_color='#1E221F'
     );
 
     let (data_prefix_label) = get_label_location(dw_prefix);
