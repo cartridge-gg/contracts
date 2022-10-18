@@ -1,9 +1,18 @@
 %lang starknet
 
+from starkware.cairo.common.uint256 import Uint256, uint256_shr
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_write, dict_update, dict_read, dict_new
 from starkware.cairo.common.dict_access import DictAccess
+from src.tokens.Avatar.Avatar import (
+    IPointsContract,
+    mint,
+)
+from src.tokens.Avatar.progress import (
+    Progress,
+    get_progress,
+)
 from src.tokens.Avatar.library import (
     generate_character,
     create_grid, 
@@ -159,6 +168,26 @@ func test_border{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 
     return();
 }
+
+
+@external
+func test_progression{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    alloc_locals;
+
+    local points_address: felt;
+
+    %{
+        ids.points_address = deploy_contract("./src/tokens/Points/Points.cairo", 
+            [3333, 3333, 18, 200, 0, 123, 123]).contract_address
+    %}
+
+    let (points) = IPointsContract.balanceOf(points_address, 123);
+    let progress: Progress = get_progress(points);
+    assert progress.dimension = 8;
+
+    return ();
+}
+
 
 // @external
 // func test_generate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {

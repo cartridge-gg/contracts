@@ -15,6 +15,7 @@ from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.bool import TRUE, FALSE
 
 from src.util.str import string, literal_from_number, str_from_literal, str_concat
+from src.tokens.Avatar.progress import get_progress, Progress
 
 struct CellType {
     EMPTY: felt,
@@ -33,10 +34,11 @@ struct SvgRect {
     fill: felt,
 }
 
-const SCALE = 5;
-const PADDING = 4;
-const MAX_ROW = 14;
-const MAX_COL = 7;
+const BIAS = 3;         // approx area filled: 2 ~ 50%, 3 ~ 33%...
+const SCALE = 10;        // scales avatar + padding
+const PADDING = 4;      // padding around avatar
+const MAX_ROW = 14;     // max px height of avatar
+const MAX_COL = 7;      // max width of avatar 
 const MAX_STEPS = MAX_ROW * MAX_COL;
 
 //##########################
@@ -99,7 +101,7 @@ func str_from_svg_rect{range_check_ptr}(svg_rect: SvgRect) -> (str: string) {
 }
 
 func init_dict{range_check_ptr}(
-    seed: felt, bias: felt, n_steps: felt,  dict: DictAccess*
+    seed: felt, n_steps: felt,  dict: DictAccess*
 ) -> (dict: DictAccess*) {
 
     if (n_steps == 0) {
@@ -107,7 +109,7 @@ func init_dict{range_check_ptr}(
     }
 
     let (prob, _) = unsigned_div_rem(seed, n_steps);
-    let (_, event) = unsigned_div_rem(prob, bias);
+    let (_, event) = unsigned_div_rem(prob, BIAS);
     let key = MAX_STEPS - n_steps;
     
     if (event == 1) {
@@ -117,7 +119,7 @@ func init_dict{range_check_ptr}(
     }
 
     return init_dict(
-        seed=seed, bias=bias, n_steps=n_steps - 1, dict=dict
+        seed=seed, n_steps=n_steps - 1, dict=dict
     );
 }
 
@@ -322,9 +324,13 @@ func crop{range_check_ptr}(
 }
 
 func add_border{range_check_ptr}(
-    dict: DictAccess*, n_steps: felt
+    dict: DictAccess*, n_steps: felt, border_color: felt
 ) -> (dict: DictAccess*) {
     alloc_locals; 
+
+    if(border_color == -1) {
+        return (dict=dict);
+    }
 
     if(n_steps == 0) {
         return (dict=dict);
@@ -336,10 +342,10 @@ func add_border{range_check_ptr}(
 
     if(event == CellType.EMPTY and neighbors != 0) {
         dict_write{dict_ptr=dict}(key=key, new_value=CellType.BORDER);
-        return add_border(dict=dict, n_steps=n_steps -1);
+        return add_border(dict=dict, n_steps=n_steps -1, border_color=border_color);
     }
 
-    return add_border(dict=dict, n_steps=n_steps -1);
+    return add_border(dict=dict, n_steps=n_steps -1, border_color=border_color);
 }
 
 func render{range_check_ptr}(
@@ -409,12 +415,11 @@ func grid_loop{syscall_ptr: felt*, range_check_ptr}(
 }
 
 func generate_character{syscall_ptr: felt*, range_check_ptr}(
-    seed: felt, dimension: felt, bias: felt
+    seed: felt, dimension: felt, border_color: felt, bg_color: felt
 ) -> (svg_str: string) {
     alloc_locals;
 
     assert_not_zero(seed);
-    assert_not_zero(bias);
 
     let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
 
@@ -423,7 +428,7 @@ func generate_character{syscall_ptr: felt*, range_check_ptr}(
 
     let two_end = two_start;
     let (one_end) = init_dict(
-        seed=seed, bias=bias, n_steps=MAX_STEPS, dict=one_start
+        seed=seed, n_steps=MAX_STEPS, dict=one_start
     );
 
     let (one_end, two_end) = evolve(
@@ -437,9 +442,9 @@ func generate_character{syscall_ptr: felt*, range_check_ptr}(
     // );
 
     let (dict) = crop(dict=two_end, dimension=dimension, grid=grid, n_steps=MAX_STEPS);
-    let (dict) = add_border(dict=dict, n_steps=MAX_STEPS);
+    let (dict) = add_border(dict=dict, n_steps=MAX_STEPS, border_color=border_color);
 
-    let (header_str: string) = return_svg_header(bg_color='#1E221F');
+    let (header_str: string) = return_svg_header(bg_color=bg_color);
     let (body_str: string) = render(
         dict=dict, 
         grid=grid, 
@@ -453,11 +458,14 @@ func generate_character{syscall_ptr: felt*, range_check_ptr}(
     return (svg_str,);
 }
 
-func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(seed: felt) -> (json_str: string) {
+func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(seed: felt, progress: Progress) -> (json_str: string) {
     alloc_locals;
 
     let (svg_str) = generate_character(
-        seed=seed, dimension=6, bias=3
+        seed=seed, 
+        dimension=progress.dimension, 
+        border_color=progress.border_color, 
+        bg_color=progress.bg_color,
     );
 
     let (data_prefix_label) = get_label_location(dw_prefix);

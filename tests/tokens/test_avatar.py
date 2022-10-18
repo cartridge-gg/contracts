@@ -21,16 +21,16 @@ async def test_generate_avatars():
     avatar, _ = await deploy(starknet, "src/fixtures/Avatar.cairo")
     body = ""
 
-    iterations = 1              # number of avatars per dimension
-    dimensions = [6, 8, 10, 12]         # avatar dimensions
-    bias = 3                    # approx area filled: 2 ~ 50%, 3 ~ 33%, 4 ~ 25%...
+    iterations = 3      # number of avatars per dimension
+    dimensions = [6, 8, 10, 12]    # avatar dimensions
 
     for i in range(iterations):
         body += "<div>"
         seed = int.from_bytes(os.urandom(16), byteorder="big")
         for j in dimensions:
-                character = await avatar.test_generate_character(seed=seed, 
-                    bias=bias, 
+                character = await avatar.test_generate_character(
+                    seed=seed,
+                    border=1,
                     dimension=j).execute()
                 recovered_svg = felt_array_to_ascii(character.result.tokenURI)
                 body += recovered_svg.replace('\\"','\"')

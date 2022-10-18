@@ -11,8 +11,16 @@ from openzeppelin.security.pausable.library import Pausable
 from openzeppelin.access.ownable.library import Ownable
 
 from src.tokens.Avatar.library import create_tokenURI
+from src.tokens.Avatar.progress import get_progress
 from src.util.str import string, str_concat, str_from_literal
 
+const POINTS_CONTRACT = 0x00c62540e9a10c47a4b7d8abaff468192c66f2d1e979f6bade6e44bf73995982;
+
+@contract_interface
+namespace IPointsContract {
+    func balanceOf(account: felt) -> (balance: Uint256) {
+    }
+}
 
 //
 // Constructor
@@ -87,8 +95,28 @@ func isApprovedForAll{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 func tokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     tokenId: Uint256
 ) -> (tokenURI_len: felt, tokenURI: felt*) {
-    let (svg) = create_tokenURI(seed=tokenId.low);
+    alloc_locals;
+    let account = (tokenId.high * 0x100000000000000000000000000000000) + tokenId.low;
+    let (points) = IPointsContract.balanceOf(
+        contract_address=POINTS_CONTRACT, 
+        account=account
+    );
+    let (progress) = get_progress(points);
+    let (svg) = create_tokenURI(seed=tokenId.low, progress=progress);
     return (tokenURI_len=svg.arr_len, tokenURI=svg.arr);
+}
+
+@view
+func points{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    tokenId: Uint256
+) -> (points: Uint256) {
+    alloc_locals;
+    let account = (tokenId.high * 0x100000000000000000000000000000000) + tokenId.low;
+    let (points) = IPointsContract.balanceOf(
+        contract_address=POINTS_CONTRACT, 
+        account=account
+    );
+    return (points=points);
 }
 
 @view
