@@ -35,10 +35,10 @@ struct SvgRect {
 }
 
 const BIAS = 3;         // approx area filled: 2 ~ 50%, 3 ~ 33%...
-const SCALE = 10;        // scales avatar + padding
+const SCALE = 10;       // scales avatar + padding
 const PADDING = 4;      // padding around avatar
 const MAX_ROW = 14;     // max px height of avatar
-const MAX_COL = 7;      // max width of avatar 
+const MAX_COL = 7;      // max px width of avatar (half) 
 const MAX_STEPS = MAX_ROW * MAX_COL;
 
 //##########################
@@ -324,13 +324,9 @@ func crop{range_check_ptr}(
 }
 
 func add_border{range_check_ptr}(
-    dict: DictAccess*, n_steps: felt, border_color: felt
+    dict: DictAccess*, n_steps: felt
 ) -> (dict: DictAccess*) {
     alloc_locals; 
-
-    if(border_color == -1) {
-        return (dict=dict);
-    }
 
     if(n_steps == 0) {
         return (dict=dict);
@@ -342,10 +338,10 @@ func add_border{range_check_ptr}(
 
     if(event == CellType.EMPTY and neighbors != 0) {
         dict_write{dict_ptr=dict}(key=key, new_value=CellType.BORDER);
-        return add_border(dict=dict, n_steps=n_steps -1, border_color=border_color);
+        return add_border(dict=dict, n_steps=n_steps - 1);
     }
 
-    return add_border(dict=dict, n_steps=n_steps -1, border_color=border_color);
+    return add_border(dict=dict, n_steps=n_steps - 1);
 }
 
 func render{range_check_ptr}(
@@ -414,14 +410,27 @@ func grid_loop{syscall_ptr: felt*, range_check_ptr}(
     return (grid_end=grid);
 }
 
-func generate_character{syscall_ptr: felt*, range_check_ptr}(
-    seed: felt, dimension: felt, border_color: felt, bg_color: felt
-) -> (svg_str: string) {
+func get_fingerprint{syscall_ptr: felt*, range_check_ptr}(
+    dict: DictAccess*,
+    data: felt,
+    n_steps: felt,
+) -> (dict: DictAccess*, fingerprint: felt) {
+
+    if (n_steps == 0) {
+        return (dict=dict, fingerprint=data);
+    }
+
+    let key = MAX_STEPS - n_steps;
+    let (event) = dict_read{dict_ptr=dict}(key=key);
+    let data = (data * 2) + event;  // shift right one bit
+
+    return get_fingerprint(dict=dict, data=data, n_steps=n_steps-1);
+}
+
+func init_character{syscall_ptr: felt*, range_check_ptr}(
+    seed: felt, 
+) -> (dict: DictAccess*) {
     alloc_locals;
-
-    assert_not_zero(seed);
-
-    let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
 
     let (local one_start) = default_dict_new(default_value=CellType.EMPTY);
     let (local two_start) = default_dict_new(default_value=CellType.EMPTY);
@@ -441,8 +450,19 @@ func generate_character{syscall_ptr: felt*, range_check_ptr}(
     //     n_steps=MAX_STEPS, input=two_end, output=one_end
     // );
 
-    let (dict) = crop(dict=two_end, dimension=dimension, grid=grid, n_steps=MAX_STEPS);
-    let (dict) = add_border(dict=dict, n_steps=MAX_STEPS, border_color=border_color);
+    return (dict=two_end);
+}
+
+func generate_svg{syscall_ptr: felt*, range_check_ptr}(
+    seed: felt, dimension: felt, border_color: felt, bg_color: felt
+) -> (svg_str: string) {
+    alloc_locals;
+
+    let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
+
+    let (dict: DictAccess*) = init_character(seed=seed);
+    let (dict: DictAccess*) = crop(dict=dict, dimension=dimension, grid=grid, n_steps=MAX_STEPS);
+    //let (dict: DictAccess*) = add_border(dict=dict, n_steps=MAX_STEPS);
 
     let (header_str: string) = return_svg_header(bg_color=bg_color);
     let (body_str: string) = render(
@@ -454,14 +474,49 @@ func generate_character{syscall_ptr: felt*, range_check_ptr}(
     );
 
     let (close_str: string) = str_from_literal('</svg>');
-    let (svg_str) = str_concat(body_str, close_str);
+    let (svg_str: string) = str_concat(body_str, close_str);
     return (svg_str,);
 }
 
-func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(seed: felt, progress: Progress) -> (json_str: string) {
+func create_data{syscall_ptr: felt*, range_check_ptr}(
+    seed: felt, 
+    progress: Progress
+) -> (
+    rows: felt,
+    cols: felt,
+    padding: felt,
+    scale: felt,
+    dimension: felt,
+    fingerprint: felt,
+) {
     alloc_locals;
 
-    let (svg_str) = generate_character(
+    let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
+    let (dict: DictAccess*) = init_character(seed=seed);
+    let (dict: DictAccess*) = crop(dict=dict, dimension=progress.dimension, grid=grid, n_steps=MAX_STEPS);
+    let (dict, fingerprint) = get_fingerprint(dict=dict, data=0, n_steps=MAX_STEPS);
+
+    return (
+        rows=MAX_ROW, 
+        cols=MAX_COL, 
+        padding=PADDING, 
+        scale=SCALE,
+        dimension=progress.dimension,
+        fingerprint=fingerprint
+    );
+}
+
+func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
+    seed: felt, 
+    progress: Progress
+) -> (
+    json_str: string
+) {
+    alloc_locals;
+    
+    assert_not_zero(seed);
+
+    let (svg_str) = generate_svg(
         seed=seed, 
         dimension=progress.dimension, 
         border_color=progress.border_color, 

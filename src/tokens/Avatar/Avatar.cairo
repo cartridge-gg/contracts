@@ -4,13 +4,15 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.cairo.common.uint256 import Uint256
+from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.alloc import alloc
 
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.security.pausable.library import Pausable
 from openzeppelin.access.ownable.library import Ownable
 
-from src.tokens.Avatar.library import create_tokenURI
+from src.tokens.Avatar.library import create_tokenURI, create_data
 from src.tokens.Avatar.progress import get_progress
 from src.util.str import string, str_concat, str_from_literal
 
@@ -92,22 +94,7 @@ func isApprovedForAll{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 }
 
 @view
-func tokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256
-) -> (tokenURI_len: felt, tokenURI: felt*) {
-    alloc_locals;
-    let account = (tokenId.high * 0x100000000000000000000000000000000) + tokenId.low;
-    let (points) = IPointsContract.balanceOf(
-        contract_address=POINTS_CONTRACT, 
-        account=account
-    );
-    let (progress) = get_progress(points);
-    let (svg) = create_tokenURI(seed=tokenId.low, progress=progress);
-    return (tokenURI_len=svg.arr_len, tokenURI=svg.arr);
-}
-
-@view
-func points{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+func getPoints{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     tokenId: Uint256
 ) -> (points: Uint256) {
     alloc_locals;
@@ -117,6 +104,45 @@ func points{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         account=account
     );
     return (points=points);
+}
+
+@view
+func tokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    tokenId: Uint256
+) -> (tokenURI_len: felt, tokenURI: felt*) {
+    alloc_locals;
+    let (points) = getPoints(tokenId);
+    let (progress) = get_progress(points);
+    let (svg) = create_tokenURI(seed=tokenId.low, progress=progress);
+    return (tokenURI_len=svg.arr_len, tokenURI=svg.arr);
+}
+
+@view
+func avatarData{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    tokenId: Uint256
+) -> (
+    rows: felt, 
+    cols: felt, 
+    padding: felt, 
+    scale: felt, 
+    dimension: felt, 
+    points: Uint256,
+    fingerprint: felt,
+) {
+    alloc_locals;
+
+    let (points) = getPoints(tokenId);
+    let (progress) = get_progress(points);
+    let (rows, cols, padding, scale, dimension, fingerprint) = create_data(seed=tokenId.low, progress=progress);
+    return(
+        rows=rows, 
+        cols=cols, 
+        padding=padding, 
+        scale=scale, 
+        dimension=dimension,
+        points=points,
+        fingerprint=fingerprint
+    );
 }
 
 @view
