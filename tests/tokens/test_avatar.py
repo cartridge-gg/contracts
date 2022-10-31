@@ -1,6 +1,7 @@
 """contract.cairo test file."""
 import os
 import pytest
+from random import randint
 from tinyhtml import html, raw, h
 
 from starkware.starknet.testing.starknet import Starknet
@@ -17,26 +18,23 @@ async def test_generate_avatars():
     # system.
     starknet = await Starknet.empty()
 
-    avatar, avatar_class = await deploy(starknet, "src/fixtures/Avatar.cairo")
+    avatar, _ = await deploy(starknet, "src/fixtures/Avatar.cairo")
     body = ""
 
-    dimensions = [8]        # avatar dimensions
-    iterations = 5          # number of avatars per dimension
-    color = "#FFF"          # color of the avatar
-    bg_color = "#1E221F"     # background color of avatar
-    bias = 3                # approx area filled: 2 ~ 50%, 3 ~ 33%, 4 ~ 25%...
-    for i in dimensions:
-        body += html_h2(i, color, bias)
-        for j in range(iterations):
-            seed = int.from_bytes(os.urandom(16), byteorder="big")
-            character = await avatar.test_generate_character(seed=seed, 
-                bias=bias, 
-                dimension=i, 
-                color=ascii_to_felt(color), 
-                bg_color=ascii_to_felt(bg_color)).execute()
+    iterations = 5      # number of avatars per dimension
+    dimensions = [4, 6, 8, 10, 12]    # avatar dimensions
 
-            recovered_svg = felt_array_to_ascii(character.result.tokenURI)
-            body += recovered_svg.replace('\\"','\"')
+    for i in range(iterations):
+        body += "<div>"
+        seed = int.from_bytes(os.urandom(16), byteorder="big")
+        for j in dimensions:
+                character = await avatar.test_generate_svg(
+                    seed=seed,
+                    border=1,
+                    dimension=j).execute()
+                recovered_svg = felt_array_to_ascii(character.result.tokenURI)
+                body += recovered_svg.replace('\\"','\"')
+        body += "</div>"
 
     file = open("avatars_preview.html", "w")
     file.write(html_doc(raw(body)))
@@ -65,7 +63,7 @@ def html_doc(body):
             h("title")("Avatars Preview"),
             h("style")("""
                 html {
-                    background-color: #0F1410;
+                    background-color: #1E221F;
                 }
                 svg {
                     margin: 25px;

@@ -10,10 +10,18 @@ from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_write, dict_update, dict_read
-from starkware.cairo.common.math_cmp import is_le, is_nn
+from starkware.cairo.common.math_cmp import is_le, is_nn, is_in_range
 from starkware.cairo.common.registers import get_label_location
+from starkware.cairo.common.bool import TRUE, FALSE
 
 from src.util.str import string, literal_from_number, str_from_literal, str_concat
+from src.tokens.Avatar.progress import get_progress, Progress
+
+struct CellType {
+    EMPTY: felt,
+    BODY: felt,
+    BORDER: felt,
+}
 
 struct Cell {
     row: felt,
@@ -26,18 +34,22 @@ struct SvgRect {
     fill: felt,
 }
 
-const SCALE = 10;
-const PADDING = 4;
+const BIAS = 3;         // approx area filled: 2 ~ 50%, 3 ~ 33%...
+const SCALE = 10;       // scales avatar + padding
+const PADDING = 4;      // padding around avatar
+const MAX_ROW = 14;     // max px height of avatar
+const MAX_COL = 7;      // max px width of avatar (half) 
+const MAX_STEPS = MAX_ROW * MAX_COL;
 
 //##########################
 
-func return_svg_header{range_check_ptr}(w: felt, h: felt, bg_color: felt) -> (str: string) {
+func return_svg_header{range_check_ptr}(bg_color: felt) -> (str: string) {
     alloc_locals;
 
     // Format:
     // <svg width={w*scale} height={h*scale} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" shape-rendering="crispEdges">
-    let full_w = PADDING * 2 + w;
-    let full_h = PADDING * 2 + h;
+    let full_w = PADDING * 2 + MAX_ROW;
+    let full_h = PADDING * 2 + MAX_ROW;
     let (w_literal: felt) = literal_from_number(full_w * SCALE);
     let (h_literal: felt) = literal_from_number(full_h * SCALE);
     let (vb_w_literal: felt) = literal_from_number(full_w);
@@ -89,91 +101,251 @@ func str_from_svg_rect{range_check_ptr}(svg_rect: SvgRect) -> (str: string) {
 }
 
 func init_dict{range_check_ptr}(
-    seed: felt, color: felt, bias: felt, n_steps: felt, max_steps: felt, dict: DictAccess*
+    seed: felt, n_steps: felt,  dict: DictAccess*
 ) -> (dict: DictAccess*) {
+
     if (n_steps == 0) {
         return (dict=dict);
     }
 
     let (prob, _) = unsigned_div_rem(seed, n_steps);
-    let (_, event) = unsigned_div_rem(prob, bias);
-
-    let key = max_steps - n_steps;
-
+    let (_, event) = unsigned_div_rem(prob, BIAS);
+    let key = MAX_STEPS - n_steps;
+    
     if (event == 1) {
-        dict_write{dict_ptr=dict}(key=key, new_value=color);
+        dict_write{dict_ptr=dict}(key=key, new_value=CellType.BODY);
     } else {
-        dict_write{dict_ptr=dict}(key=key, new_value=0);
+        dict_write{dict_ptr=dict}(key=key, new_value=CellType.EMPTY);
     }
 
     return init_dict(
-        seed=seed, color=color, bias=bias, n_steps=n_steps - 1, max_steps=max_steps, dict=dict
+        seed=seed, n_steps=n_steps - 1, dict=dict
     );
 }
 
-func num_neighbors{range_check_ptr}(cell_list: Cell*, n_steps, dict: DictAccess*) -> (num: felt) {
-    alloc_locals;
+func check_above{range_check_ptr}(
+    key: felt, value: felt, dict: DictAccess*
+) -> (above: felt, dict: DictAccess*) {
 
-    local above;
-    local below;
-    local left;
-    local right;
-
-    let check_above = is_le(n_steps, 3);
-    if (check_above != 0) {
-        let cell: DictAccess* = dict + (DictAccess.SIZE * 4);
-        above = cell.prev_value;
+    let check = is_le(MAX_COL, key);
+    if(check != 0) {
+        let (above) = dict_read{dict_ptr=dict}(key=key - MAX_COL);
+        if(above == value) {
+            return (above=1, dict=dict);
+        }
+        return (above=0, dict=dict);
     }
 
-    let check_below = is_le(28, n_steps);
-    if (check_below != 0) {
-        let cell: DictAccess* = dict - (DictAccess.SIZE * 4);
-        below = cell.prev_value;
-    }
-
-    let (_, x) = unsigned_div_rem(n_steps, 4);
-
-    let check_left = is_le(0, x);
-    if (check_left != 0) {
-        let cell: DictAccess* = dict - DictAccess.SIZE;
-        left = cell.prev_value;
-    }
-
-    let check_right = is_le(x, 3);
-    if (check_right != 0) {
-        let cell: DictAccess* = dict + DictAccess.SIZE;
-        right = cell.prev_value;
-    }
-
-    let n = above + below + left + right;
-    return (num=n);
+    return (above=0, dict=dict);
 }
 
-func grow{range_check_ptr}(cell_list: Cell*, n_steps, dict: DictAccess*) -> (dict: DictAccess*) {
+func check_below{range_check_ptr}(
+    key: felt, value: felt, dict: DictAccess*
+) -> (below: felt, dict: DictAccess*) {
+
+    let check = is_le(key, MAX_STEPS - MAX_COL);
+    if(check != 0) {
+        let (below) = dict_read{dict_ptr=dict}(key=key + MAX_COL);
+        if(below == value) {
+            return (below=1, dict=dict);
+        }
+        return (below=0, dict=dict);
+    }
+
+    return (below=0, dict=dict);
+}
+
+func check_left{range_check_ptr}(
+    key: felt, value: felt, dict: DictAccess*
+) -> (left: felt, dict: DictAccess*) {
+
+    let (_, x) = unsigned_div_rem(key + MAX_COL, MAX_COL);
+    if(x != 0) {
+        let (left) = dict_read{dict_ptr=dict}(key=key - 1);
+        if(left == value) {
+            return (left=1, dict=dict);
+        }
+        return (left=0, dict=dict);
+    }
+
+    return (left=0, dict=dict);
+}
+
+func check_right{range_check_ptr}(
+    key: felt, value: felt, dict: DictAccess*
+) -> (right: felt, dict: DictAccess*) {
+
+    let (_, x) = unsigned_div_rem(key + 1, MAX_COL);
+    if(x != 0) {
+        let (right) = dict_read{dict_ptr=dict}(key=key + 1);
+        if(value == right) {
+            return (right=1, dict=dict);
+        }
+        return (right=0, dict=dict);
+    }
+
+    return (right=0, dict=dict);
+}
+
+func num_neighbors{range_check_ptr}(
+    key: felt, value: felt, dict: DictAccess*
+) -> (neighbors: felt, dict: DictAccess*) {
+    alloc_locals;
+
+    let (above, dict) = check_above(key=key, value=value, dict=dict);
+    let (below, dict) = check_below(key=key, value=value, dict=dict);
+    let (left, dict) = check_left(key=key, value=value, dict=dict);
+    let (right, dict) = check_right(key=key, value=value, dict=dict);
+
+    return(neighbors=above + below + left + right, dict=dict);
+}
+
+func evolve{range_check_ptr}(
+    n_steps: felt, input: DictAccess*, output: DictAccess*
+) -> (input: DictAccess*, output: DictAccess*) {
     if (n_steps == 0) {
+        return (input=input, output=output);
+    }
+
+    let key = n_steps - 1;
+    let (neighbors, input) = num_neighbors(key=key, value=1, dict=input);
+    let (alive) = dict_read{dict_ptr=input}(key=key);
+
+    if(alive == TRUE) {
+        let continue = is_in_range(neighbors, 2, 4);
+
+        if(continue == TRUE) {
+            dict_write{dict_ptr=output}(key=key, new_value=CellType.BODY);
+            return evolve(n_steps=n_steps - 1, input=input, output=output);
+        }
+
+        dict_write{dict_ptr=output}(key=key, new_value=CellType.EMPTY);
+        return evolve(n_steps=n_steps - 1, input=input, output=output);
+    } else {
+        let rebirth = is_le(neighbors, 1);
+
+        if(rebirth == TRUE) {
+            dict_write{dict_ptr=output}(key=key, new_value=CellType.BODY);
+            return evolve(n_steps=n_steps - 1, input=input, output=output);
+        }
+
+        return evolve(n_steps=n_steps - 1, input=input, output=output);
+    }
+}
+
+func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt) {
+    let (pri_addr) = get_label_location(pri_start);
+    let (sec_addr) = get_label_location(sec_start);
+
+    return (primary=cast(pri_addr, felt*), secondary=cast(sec_addr, felt*), size=5);
+
+    pri_start:
+    dw '#FBCB4A';
+    dw '#A7E7A7';
+    dw '#FBCB4A';
+    dw '#7563A3';
+    dw '#73C4FF';
+
+    sec_start: 
+    dw '#B5902D';
+    dw '#577A57';
+    dw '#7A7A2D';
+    dw '#524573';
+    dw '#497FA6';
+}
+
+func get_color{range_check_ptr}(
+    cell: Cell*, seed: felt, n_steps: felt, event: felt
+) -> (color: felt) {
+    alloc_locals;
+
+    if(event == CellType.BORDER) {
+        return (color='#888');
+    } else {
+        return (color='#fff');
+    }
+
+    // let (primary, secondary, size) = colors();
+    // let (_, idx) = unsigned_div_rem(seed, size);
+
+    // let (prob, _) = unsigned_div_rem(seed, n_steps);
+    // let (_, color_event) = unsigned_div_rem(prob, 5); 
+    // let (_, primary_event) = unsigned_div_rem(prob, 3); 
+
+    // if(event == CellType.BORDER) {
+    //     return (color=secondary[idx]);
+    // }
+    // // if(color_event == 1) {
+    // //     return (color=primary[idx]);
+    // // }
+    
+    // // if(primary_event == 0) {
+    // //     return (color=secondary[idx]);
+    // // } 
+    // return (color=primary[idx]);
+}
+
+func contains{range_check_ptr}(
+    dimension: felt, cell: Cell*
+) -> (inside: felt) {
+
+    let (padding, _) = unsigned_div_rem(MAX_ROW - dimension, 2);
+    let side = is_le(padding, cell.col - 1);
+    let top = is_le(padding, cell.row - 1);
+    let bottom = is_le(cell.row - 1, padding + dimension - 1);
+
+    if(top != 0 and bottom != 0 and side != 0) {
+        return (inside=TRUE);
+    }
+
+    return (inside=FALSE);
+}
+
+func crop{range_check_ptr}(
+    dict: DictAccess*, dimension: felt, grid: Cell*, n_steps: felt
+) -> (dict: DictAccess*) {
+    alloc_locals;
+
+    if(n_steps == 0) {
+        return(dict=dict);
+    }
+
+    let key = n_steps - 1;
+    let (local event) = dict_read{dict_ptr=dict}(key=key);
+    let cell: Cell* = grid + (Cell.SIZE * key);
+    let (inside) = contains(dimension, cell);
+
+    if(event == CellType.BODY and inside != TRUE) {
+        dict_write{dict_ptr=dict}(key=key, new_value=0);
+        return crop(dict=dict, dimension=dimension, grid=grid, n_steps=n_steps - 1);
+    }
+
+    return crop(dict=dict, dimension=dimension, grid=grid, n_steps=n_steps - 1);
+}
+
+func add_border{range_check_ptr}(
+    dict: DictAccess*, n_steps: felt
+) -> (dict: DictAccess*) {
+    alloc_locals; 
+
+    if(n_steps == 0) {
         return (dict=dict);
     }
+    let key = n_steps - 1;
 
-    let (prob, _) = unsigned_div_rem(0, n_steps + 1);
-    let (_, event) = unsigned_div_rem(prob, 2);
+    let (local event) = dict_read{dict_ptr=dict}(key=key);
+    let (neighbors, dict) = num_neighbors(key=key, value=1, dict=dict);
 
-    assert dict.key = 32 - n_steps;
-
-    if (event == 0) {
-        assert dict.prev_value = 1;
-        assert dict.new_value = 1;
-        tempvar range_check_ptr = range_check_ptr;
-    } else {
-        assert dict.prev_value = 0;
-        assert dict.new_value = 0;
-        tempvar range_check_ptr = range_check_ptr;
+    if(event == CellType.EMPTY and neighbors != 0) {
+        dict_write{dict_ptr=dict}(key=key, new_value=CellType.BORDER);
+        return add_border(dict=dict, n_steps=n_steps - 1);
     }
 
-    return grow(cell_list=cell_list + Cell.SIZE, n_steps=n_steps - 1, dict=dict + DictAccess.SIZE);
+    return add_border(dict=dict, n_steps=n_steps - 1);
 }
 
 func render{range_check_ptr}(
-    dict: DictAccess*, grid: Cell*, svg_str: string, dimension: felt, n_steps: felt
+    dict: DictAccess*, grid: Cell*, seed: felt, svg_str: string, n_steps: felt
 ) -> (svg_str: string) {
     alloc_locals;
 
@@ -182,100 +354,173 @@ func render{range_check_ptr}(
     }
 
     let key = n_steps - 1;
-    let (local color) = dict_read{dict_ptr=dict}(key=key);
+    let (local event) = dict_read{dict_ptr=dict}(key=key);
     let cell: Cell* = grid + (Cell.SIZE * key);
+    
+    if(event != CellType.EMPTY) {
+        let (color) = get_color(cell, seed, n_steps, event);
 
-    if (color != 0) {
         let svg_rect_left = SvgRect(x=cell.col - 1, y=cell.row - 1, fill=color);
         let (rect_str: string) = str_from_svg_rect(svg_rect_left);
         let (next_svg_str) = str_concat(svg_str, rect_str);
 
-        let mirror_x = (dimension + 1) - cell.col;
+        let mirror_x = (MAX_ROW + 1) - cell.col;
 
         let svg_rect_right = SvgRect(x=mirror_x - 1, y=cell.row - 1, fill=color);
         let (rect_str: string) = str_from_svg_rect(svg_rect_right);
         let (final_svg_str) = str_concat(next_svg_str, rect_str);
         return render(
-            dict=dict, grid=grid, svg_str=final_svg_str, dimension=dimension, n_steps=n_steps - 1
-        );
-    } else {
-        return render(
-            dict=dict, grid=grid, svg_str=svg_str, dimension=dimension, n_steps=n_steps - 1
+            dict=dict, grid=grid, seed=seed, svg_str=final_svg_str, n_steps=n_steps - 1
         );
     }
+
+    return render(
+        dict=dict, grid=grid, seed=seed, svg_str=svg_str, n_steps=n_steps - 1
+    );
 }
 
 func create_grid{syscall_ptr: felt*, range_check_ptr}(row: felt, col: felt) -> (grid: Cell*) {
     alloc_locals;
 
     let (local grid_start: Cell*) = alloc();
-    grid_recurse(row_max=row, row=row, col=col, grid=grid_start);
+    grid_loop(col_max=col, row=row, col=col, grid=grid_start);
 
     return (grid_start,);
 }
 
-func grid_recurse{syscall_ptr: felt*, range_check_ptr}(
-    row_max: felt, row: felt, col: felt, grid: Cell*
+func grid_loop{syscall_ptr: felt*, range_check_ptr}(
+    col_max: felt, row: felt, col: felt, grid: Cell*
 ) -> (grid_end: Cell*) {
     alloc_locals;
 
-    if (row == 0 and col == 1) {
+    if (col == 0 and row == 1) {
         return (grid_end=grid);
     }
 
-    if (row != 0) {
+    if (col != 0) {
         assert grid[0] = Cell(row=row, col=col);
-        return grid_recurse(row_max=row_max, row=row - 1, col=col, grid=grid + Cell.SIZE);
+        return grid_loop(col_max=col_max, row=row, col=col - 1, grid=grid + Cell.SIZE);
     }
 
-    if (col != 1) {
-        assert grid[0] = Cell(row=row_max, col=col - 1);
-        return grid_recurse(row_max=row_max, row=row_max - 1, col=col - 1, grid=grid + Cell.SIZE);
+    if (row != 1) {
+        assert grid[0] = Cell(row=row - 1, col=col_max);
+        return grid_loop(col_max=col_max, row=row - 1, col=col_max - 1, grid=grid + Cell.SIZE);
     }
 
-    // unreachable code but return required.
-    // 'else' is not yet supported in base case condition's boolean expression
     return (grid_end=grid);
 }
 
-func generate_character{syscall_ptr: felt*, range_check_ptr}(
-    seed: felt, bias: felt, dimension: felt, color: felt, bg_color: felt
+func get_fingerprint{syscall_ptr: felt*, range_check_ptr}(
+    dict: DictAccess*,
+    data: felt,
+    n_steps: felt,
+) -> (dict: DictAccess*, fingerprint: felt) {
+
+    if (n_steps == 0) {
+        return (dict=dict, fingerprint=data);
+    }
+
+    let key = MAX_STEPS - n_steps;
+    let (event) = dict_read{dict_ptr=dict}(key=key);
+    let data = (data * 2) + event;  // shift right one bit
+
+    return get_fingerprint(dict=dict, data=data, n_steps=n_steps-1);
+}
+
+func init_character{syscall_ptr: felt*, range_check_ptr}(
+    seed: felt, 
+) -> (dict: DictAccess*) {
+    alloc_locals;
+
+    let (local one_start) = default_dict_new(default_value=CellType.EMPTY);
+    let (local two_start) = default_dict_new(default_value=CellType.EMPTY);
+
+    let two_end = two_start;
+    let (one_end) = init_dict(
+        seed=seed, n_steps=MAX_STEPS, dict=one_start
+    );
+
+    let (one_end, two_end) = evolve(
+        n_steps=MAX_STEPS, input=one_end, output=two_end
+    );
+
+    // we can keep evolving, but IMO doing it just once looks the best
+    //
+    // let (two_end, one_end) = evolve(
+    //     n_steps=MAX_STEPS, input=two_end, output=one_end
+    // );
+
+    return (dict=two_end);
+}
+
+func generate_svg{syscall_ptr: felt*, range_check_ptr}(
+    seed: felt, dimension: felt, border_color: felt, bg_color: felt
 ) -> (svg_str: string) {
     alloc_locals;
 
-    assert_not_zero(seed);
-    assert_not_zero(dimension);
-    assert_not_zero(bias);
+    let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
 
-    let (q_col, r_col) = unsigned_div_rem(dimension, 2);
-    let col = q_col + r_col;
-    let row = dimension;
-    let n_steps = col * row;
+    let (dict: DictAccess*) = init_character(seed=seed);
+    let (dict: DictAccess*) = crop(dict=dict, dimension=dimension, grid=grid, n_steps=MAX_STEPS);
+    //let (dict: DictAccess*) = add_border(dict=dict, n_steps=MAX_STEPS);
 
-    let (grid: Cell*) = create_grid(row=row, col=col);
-
-    let (local dict_start) = default_dict_new(default_value=0);
-
-    let (dict_end) = init_dict(
-        seed=seed, color=color, bias=bias, n_steps=n_steps, max_steps=n_steps, dict=dict_start
+    let (header_str: string) = return_svg_header(bg_color=bg_color);
+    let (body_str: string) = render(
+        dict=dict, 
+        grid=grid, 
+        seed=seed, 
+        svg_str=header_str, 
+        n_steps=MAX_STEPS
     );
 
-    let (finalized_dict_start, finalized_dict_end) = default_dict_finalize(dict_start, dict_end, 0);
-
-    let (header_str: string) = return_svg_header(dimension, dimension, bg_color);
-    let (render_str: string) = render(
-        dict=finalized_dict_end, grid=grid, svg_str=header_str, dimension=dimension, n_steps=n_steps
-    );
     let (close_str: string) = str_from_literal('</svg>');
-    let (svg_str) = str_concat(render_str, close_str);
+    let (svg_str: string) = str_concat(body_str, close_str);
     return (svg_str,);
 }
 
-func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(seed: felt) -> (json_str: string) {
+func create_data{syscall_ptr: felt*, range_check_ptr}(
+    seed: felt, 
+    progress: Progress
+) -> (
+    rows: felt,
+    cols: felt,
+    padding: felt,
+    scale: felt,
+    dimension: felt,
+    fingerprint: felt,
+) {
     alloc_locals;
 
-    let (svg_str) = generate_character(
-        seed=seed, bias=3, dimension=8, color='#FFF', bg_color='#1E221F'
+    let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
+    let (dict: DictAccess*) = init_character(seed=seed);
+    let (dict: DictAccess*) = crop(dict=dict, dimension=progress.dimension, grid=grid, n_steps=MAX_STEPS);
+    let (dict, fingerprint) = get_fingerprint(dict=dict, data=0, n_steps=MAX_STEPS);
+
+    return (
+        rows=MAX_ROW, 
+        cols=MAX_COL, 
+        padding=PADDING, 
+        scale=SCALE,
+        dimension=progress.dimension,
+        fingerprint=fingerprint
+    );
+}
+
+func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
+    seed: felt, 
+    progress: Progress
+) -> (
+    json_str: string
+) {
+    alloc_locals;
+    
+    assert_not_zero(seed);
+
+    let (svg_str) = generate_svg(
+        seed=seed, 
+        dimension=progress.dimension, 
+        border_color=progress.border_color, 
+        bg_color=progress.bg_color,
     );
 
     let (data_prefix_label) = get_label_location(dw_prefix);
