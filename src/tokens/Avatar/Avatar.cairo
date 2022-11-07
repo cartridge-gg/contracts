@@ -9,8 +9,11 @@ from starkware.cairo.common.alloc import alloc
 
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.introspection.erc165.library import ERC165
+from openzeppelin.security.initializable.library import Initializable
 from openzeppelin.security.pausable.library import Pausable
 from openzeppelin.access.ownable.library import Ownable
+from openzeppelin.upgrades.library import Proxy
+
 
 from src.tokens.Avatar.library import create_tokenURI, create_data
 from src.tokens.Avatar.progress import get_progress
@@ -24,16 +27,68 @@ namespace IPointsContract {
     }
 }
 
-//
-// Constructor
-//
+@contract_interface
+namespace IAvatarContract {
+    func initialize(owner: felt) {
+    }
 
-@constructor
-func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    name: felt, symbol: felt, owner: felt
+    func balanceOf(owner: felt) -> (balance: Uint256) {
+    }
+
+    func ownerOf(tokenId: Uint256) -> (owner: felt) {
+    }
+
+    func safeTransferFrom(from_: felt, to: felt, tokenId: Uint256, data_len: felt, data: felt*) {
+    }
+
+    func transferFrom(from_: felt, to: felt, tokenId: Uint256) {
+    }
+
+    func approve(approved: felt, tokenId: Uint256) {
+    }
+
+    func setApprovalForAll(operator: felt, approved: felt) {
+    }
+
+    func getApproved(tokenId: Uint256) -> (approved: felt) {
+    }
+
+    func isApprovedForAll(owner: felt, operator: felt) -> (isApproved: felt) {
+    }
+
+    func owner() -> (owner: felt) {
+    }
+
+    func paused() -> (paused: felt) {
+    }
+
+    func unpause() {
+    }
+
+    func totalSupply() -> (totalSupply: Uint256) {
+    }
+
+    func mint(to: felt, tokenId: Uint256) {
+    }
+
+    func tokenURI(tokenId: Uint256) -> (tokenURI_len: felt, tokenURI: felt*) {
+    }
+
+    func upgrade(implementation: felt) {
+    }
+
+    func implementation() -> (implementation: felt) {
+    }
+}
+
+@external
+func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    owner: felt
 ) {
-    ERC721.initializer(name, symbol);
+    Initializable.initialize();
+    ERC721.initializer('Cartridge Avatar', 'AVATAR');
     Ownable.initializer(owner);
+    Proxy.initializer(owner);
     return ();
 }
 
@@ -151,6 +206,11 @@ func paused{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -
     return (paused,);
 }
 
+@view
+func implementation{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (implementation: felt) {
+    return Proxy.get_implementation_hash();
+}
+
 //
 // Externals
 //
@@ -214,5 +274,14 @@ func pause{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
 func unpause{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     Ownable.assert_only_owner();
     Pausable._unpause();
+    return ();
+}
+
+@external
+func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    implementation: felt
+) {
+    Proxy.assert_only_admin();
+    Proxy._set_implementation_hash(implementation);
     return ();
 }

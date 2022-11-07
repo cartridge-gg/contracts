@@ -8,6 +8,7 @@ from starkware.cairo.common.dict import dict_write, dict_update, dict_read, dict
 from starkware.cairo.common.dict_access import DictAccess
 from src.tokens.Avatar.Avatar import (
     IPointsContract,
+    IAvatarContract,
 )
 from src.tokens.Avatar.progress import (
     Progress,
@@ -190,46 +191,33 @@ func test_progression{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     return ();
 }
 
+@external
+func test_upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    alloc_locals;
 
-// @external
-// func test_generate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
-//     alloc_locals;
-//     let (svg_str) = generate_svg(seed=12345, dimension=4, bias=3, bg_color='#1E221F');
-//     %{
-//         parts = memory.get_range(ids.svg_str.arr, ids.svg_str.arr_len)
-//         svg = ""
-//         for felt in parts:
-//             try:
-//                 bytes_object = bytes.fromhex(hex(felt)[2:])
-//                 ascii_string = bytes_object.decode("ASCII")
-//                 svg += ascii_string
-//             except:
-//                 print(felt)
-//         with open('avatar.svg', 'w') as f:
-//             f.write(svg)
-//     %}
-//     return();
-// }
+    local initial_implementation: felt;
+    local fake_implementation: felt;
+    local contract_address: felt;
 
+    %{
+        from starkware.starknet.compiler.compile import get_selector_from_name
+        ids.initial_implementation = declare("./src/tokens/Avatar/Avatar.cairo").class_hash
+        ids.fake_implementation = declare("./src/tokens/Avatar/Avatar.cairo").class_hash
+        ids.contract_address = deploy_contract("./lib/cairo_contracts/src/openzeppelin/upgrades/presets/Proxy.cairo",[ids.initial_implementation, get_selector_from_name('initialize'), 1, 123]).contract_address
+        stop_prank_callable = start_prank(123, target_contract_address=ids.contract_address)
+    %}
 
-// @external
-// func test_create_grid{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
-//     alloc_locals;
-//     let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
-//     count(grid=grid, n_steps=MAX_STEPS);
-//     return ();
-// }
+    let (implementation) = IAvatarContract.implementation(contract_address);
+    assert implementation = initial_implementation;
 
+    IAvatarContract.upgrade(contract_address, fake_implementation);
 
-// func count{range_check_ptr}(grid: Cell*, n_steps: felt) {
-//     if(n_steps == 0) {
-//         return ();
-//     }
-//     let key = n_steps - 1;
-//     let cell: Cell* = grid + (Cell.SIZE * key);
-//     %{
-//         print(" key: " + str(ids.key) + " col: " + str(ids.cell.col) + " row: " + str(ids.cell.row))
-//     %}
-//     return count(grid=grid, n_steps=n_steps-1);
-// }
+    let (next_implementation) = IAvatarContract.implementation(contract_address);
+    assert next_implementation = fake_implementation;
 
+    %{
+        stop_prank_callable()
+    %}
+
+    return ();
+}
