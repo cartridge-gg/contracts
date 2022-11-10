@@ -6,6 +6,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_write, dict_update, dict_read, dict_new
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.bool import TRUE, FALSE
 from src.tokens.Avatar.Avatar import (
     IPointsContract,
 )
@@ -19,7 +20,7 @@ from src.tokens.Avatar.library import (
     get_fingerprint,
     create_grid, 
     init_dict, 
-    evolve, 
+    grow, 
     num_neighbors, 
     check_above, 
     check_below, 
@@ -92,7 +93,7 @@ func test_num_neighbor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_che
 }
 
 @external
-func test_evolve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+func test_grow{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     alloc_locals;
 
     //     1 0 1 1 0 1 0       0 0 0 1 0 0 0    
@@ -118,7 +119,7 @@ func test_evolve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     dict_write{dict_ptr=input_end}(key=12, new_value=0);
     dict_write{dict_ptr=input_end}(key=13, new_value=1);
 
-    let (input_end, output_end) = evolve(n_steps=14, input=input_end, output=output_end);
+    let (input_end, output_end) = grow(n_steps=14, input=input_end, output=output_end);
 
     let(finalized_output_start, finalized_output_end) = default_dict_finalize(output_start, output_end, 0);
     let(finalized_input_start, finalized_input_end) = default_dict_finalize(input_start, input_end, 0);
@@ -152,7 +153,7 @@ func test_border{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     dict_write{dict_ptr=input_end}(key=11, new_value=1);
     dict_write{dict_ptr=input_end}(key=27, new_value=1);
 
-    let (dict) = add_border(input_end, MAX_STEPS);
+    let (dict) = add_border(input_end, MAX_STEPS, border=TRUE);
 
     let (value) = dict_read{dict_ptr=dict}(key=3);
     assert value = CellType.BORDER;

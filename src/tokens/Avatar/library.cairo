@@ -200,7 +200,7 @@ func num_neighbors{range_check_ptr}(
     return(neighbors=above + below + left + right, dict=dict);
 }
 
-func evolve{range_check_ptr}(
+func grow{range_check_ptr}(
     n_steps: felt, input: DictAccess*, output: DictAccess*
 ) -> (input: DictAccess*, output: DictAccess*) {
     if (n_steps == 0) {
@@ -216,20 +216,20 @@ func evolve{range_check_ptr}(
 
         if(continue == TRUE) {
             dict_write{dict_ptr=output}(key=key, new_value=CellType.BODY);
-            return evolve(n_steps=n_steps - 1, input=input, output=output);
+            return grow(n_steps=n_steps - 1, input=input, output=output);
         }
 
         dict_write{dict_ptr=output}(key=key, new_value=CellType.EMPTY);
-        return evolve(n_steps=n_steps - 1, input=input, output=output);
+        return grow(n_steps=n_steps - 1, input=input, output=output);
     } else {
         let rebirth = is_le(neighbors, 1);
 
         if(rebirth == TRUE) {
             dict_write{dict_ptr=output}(key=key, new_value=CellType.BODY);
-            return evolve(n_steps=n_steps - 1, input=input, output=output);
+            return grow(n_steps=n_steps - 1, input=input, output=output);
         }
 
-        return evolve(n_steps=n_steps - 1, input=input, output=output);
+        return grow(n_steps=n_steps - 1, input=input, output=output);
     }
 }
 
@@ -247,11 +247,11 @@ func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt)
     dw '#73C4FF';
 
     sec_start: 
-    dw '#B5902D';
-    dw '#577A57';
-    dw '#7A7A2D';
-    dw '#524573';
-    dw '#497FA6';
+    dw '#614f1d';
+    dw '#3d543d';
+    dw '#4f4016';
+    dw '#322a47';
+    dw '#1e3342';
 }
 
 func get_color{range_check_ptr}(
@@ -259,30 +259,13 @@ func get_color{range_check_ptr}(
 ) -> (color: felt) {
     alloc_locals;
 
+    let (primary, secondary, size) = colors();
+    let (_, idx) = unsigned_div_rem(seed, size);
+
     if(event == CellType.BORDER) {
-        return (color='#888');
-    } else {
-        return (color='#fff');
+        return (color=secondary[idx]);
     }
-
-    // let (primary, secondary, size) = colors();
-    // let (_, idx) = unsigned_div_rem(seed, size);
-
-    // let (prob, _) = unsigned_div_rem(seed, n_steps);
-    // let (_, color_event) = unsigned_div_rem(prob, 5); 
-    // let (_, primary_event) = unsigned_div_rem(prob, 3); 
-
-    // if(event == CellType.BORDER) {
-    //     return (color=secondary[idx]);
-    // }
-    // // if(color_event == 1) {
-    // //     return (color=primary[idx]);
-    // // }
-    
-    // // if(primary_event == 0) {
-    // //     return (color=secondary[idx]);
-    // // } 
-    // return (color=primary[idx]);
+    return (color=primary[idx]);
 }
 
 func contains{range_check_ptr}(
@@ -324,13 +307,18 @@ func crop{range_check_ptr}(
 }
 
 func add_border{range_check_ptr}(
-    dict: DictAccess*, n_steps: felt
+    dict: DictAccess*, n_steps: felt, border: felt
 ) -> (dict: DictAccess*) {
     alloc_locals; 
+
+    if(border == FALSE) {
+        return (dict=dict);
+    }
 
     if(n_steps == 0) {
         return (dict=dict);
     }
+    
     let key = n_steps - 1;
 
     let (local event) = dict_read{dict_ptr=dict}(key=key);
@@ -338,10 +326,10 @@ func add_border{range_check_ptr}(
 
     if(event == CellType.EMPTY and neighbors != 0) {
         dict_write{dict_ptr=dict}(key=key, new_value=CellType.BORDER);
-        return add_border(dict=dict, n_steps=n_steps - 1);
+        return add_border(dict=dict, n_steps=n_steps - 1, border=border);
     }
 
-    return add_border(dict=dict, n_steps=n_steps - 1);
+    return add_border(dict=dict, n_steps=n_steps - 1, border=border);
 }
 
 func render{range_check_ptr}(
@@ -427,8 +415,22 @@ func get_fingerprint{syscall_ptr: felt*, range_check_ptr}(
     return get_fingerprint(dict=dict, data=data, n_steps=n_steps-1);
 }
 
+func evolve{syscall_ptr: felt*, range_check_ptr}(
+    iterations: felt, input: DictAccess*, output: DictAccess*
+) -> (input: DictAccess*, output: DictAccess*) {
+    if(iterations == 0) {
+        return(input=output, output=input);
+    }
+    
+    let (input, output) = grow(
+        n_steps=MAX_STEPS, input=input, output=output
+    );
+
+    return evolve(iterations=iterations-1, input=output, output=input);
+}
+
 func init_character{syscall_ptr: felt*, range_check_ptr}(
-    seed: felt, 
+    seed: felt, evolution: felt
 ) -> (dict: DictAccess*) {
     alloc_locals;
 
@@ -440,29 +442,21 @@ func init_character{syscall_ptr: felt*, range_check_ptr}(
         seed=seed, n_steps=MAX_STEPS, dict=one_start
     );
 
-    let (one_end, two_end) = evolve(
-        n_steps=MAX_STEPS, input=one_end, output=two_end
-    );
+    let (_, output) = evolve(iterations=evolution, input=one_end, output=two_end);
 
-    // we can keep evolving, but IMO doing it just once looks the best
-    //
-    // let (two_end, one_end) = evolve(
-    //     n_steps=MAX_STEPS, input=two_end, output=one_end
-    // );
-
-    return (dict=two_end);
+    return (dict=output);
 }
 
 func generate_svg{syscall_ptr: felt*, range_check_ptr}(
-    seed: felt, dimension: felt, border_color: felt, bg_color: felt
+    seed: felt, evolution: felt, dimension: felt, border: felt, bg_color: felt
 ) -> (svg_str: string) {
     alloc_locals;
 
     let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
 
-    let (dict: DictAccess*) = init_character(seed=seed);
+    let (dict: DictAccess*) = init_character(seed=seed, evolution=evolution);
     let (dict: DictAccess*) = crop(dict=dict, dimension=dimension, grid=grid, n_steps=MAX_STEPS);
-    //let (dict: DictAccess*) = add_border(dict=dict, n_steps=MAX_STEPS);
+    let (dict: DictAccess*) = add_border(dict=dict, n_steps=MAX_STEPS, border=border);
 
     let (header_str: string) = return_svg_header(bg_color=bg_color);
     let (body_str: string) = render(
@@ -492,7 +486,7 @@ func create_data{syscall_ptr: felt*, range_check_ptr}(
     alloc_locals;
 
     let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
-    let (dict: DictAccess*) = init_character(seed=seed);
+    let (dict: DictAccess*) = init_character(seed=seed, evolution=progress.evolution);
     let (dict: DictAccess*) = crop(dict=dict, dimension=progress.dimension, grid=grid, n_steps=MAX_STEPS);
     let (dict, fingerprint) = get_fingerprint(dict=dict, data=0, n_steps=MAX_STEPS);
 
@@ -518,8 +512,9 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
 
     let (svg_str) = generate_svg(
         seed=seed, 
+        evolution=progress.evolution,
         dimension=progress.dimension, 
-        border_color=progress.border_color, 
+        border=progress.border,
         bg_color=progress.bg_color,
     );
 

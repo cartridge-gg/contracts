@@ -11,6 +11,7 @@ from starkware.crypto.signature.fast_pedersen_hash import pedersen_hash
 from utils.deployment import deploy
 
 
+
 @pytest.mark.asyncio
 async def test_generate_avatars():
     """Test generate_character method."""
@@ -21,20 +22,29 @@ async def test_generate_avatars():
     avatar, _ = await deploy(starknet, "src/fixtures/Avatar.cairo")
     body = ""
 
-    iterations = 5      # number of avatars per dimension
-    dimensions = [4, 6, 8, 10, 12]    # avatar dimensions
+    num_avatars = 10             # number of avatars per dimension
+    dimensions = [8, 10, 12]    # avatar dimensions
 
-    for i in range(iterations):
+    for i in range(num_avatars):
         body += "<div>"
         seed = int.from_bytes(os.urandom(16), byteorder="big")
+
+        character = await avatar.test_generate_svg(
+            seed=seed,
+            border=0,
+            dimension=8,
+            evolution=1).execute()
+        recovered_svg = felt_array_to_ascii(character.result.tokenURI)
+        body += recovered_svg.replace('\\"','\"')
+        
         for j in dimensions:
                 character = await avatar.test_generate_svg(
                     seed=seed,
                     border=1,
-                    dimension=j).execute()
+                    dimension=j,
+                    evolution=1).execute()
                 recovered_svg = felt_array_to_ascii(character.result.tokenURI)
                 body += recovered_svg.replace('\\"','\"')
-        body += "</div>"
 
     file = open("avatars_preview.html", "w")
     file.write(html_doc(raw(body)))
