@@ -1,11 +1,21 @@
-[submodule "argent_contracts_starknet"]
-	url = https://github.com/argentlabs/argent-contracts-starknet
-	path = lib/argent_contracts_starknet
-	branch = refs/heads/v0.2.2
-[submodule "cairo_webauthn"]
-	url = https://github.com/cartridge-gg/cairo-webauthn
-	path = lib/cairo_webauthn
 [submodule "cairo_contracts"]
 	url = https://github.com/OpenZeppelin/cairo-contracts
 	path = lib/cairo_contracts
-	branch = refs/heads/v0.3.0
+[submodule "cartridge_controller"]
+	path = lib/cartridge_controller
+	url = https://github.com/cartridge-gg/cartridge-controller
+[submodule "cairo_webauthn"]
+	path = lib/cairo_webauthn
+	url = https://github.com/cartridge-gg/cairo-webauthn
+[submodule "cairo_base64"]
+	path = lib/cairo_base64
+	url = https://github.com/cartridge-gg/cairo-base64
+[submodule "cairo_secp256r1"]
+	path = lib/cairo_secp256r1
+	url = https://github.com/cartridge-gg/cairo-secp256r1
+[submodule "cairo_sha256"]
+	path = lib/cairo_sha256
+	url = https://github.com/cartridge-gg/cairo-sha256
+[submodule "starknet_plugin_account"]
+	path = lib/starknet_plugin_account
+	url = https://github.com/argentlabs/starknet-plugin-account

@@ -9,8 +9,9 @@ from starkware.cairo.common.alloc import alloc
 
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.introspection.erc165.library import ERC165
-from openzeppelin.security.pausable.library import Pausable
+from openzeppelin.security.initializable.library import Initializable
 from openzeppelin.access.ownable.library import Ownable
+from openzeppelin.upgrades.library import Proxy
 
 from src.tokens.Avatar.library import create_tokenURI, create_data
 from src.tokens.Avatar.progress import get_progress
@@ -24,16 +25,62 @@ namespace IPointsContract {
     }
 }
 
-//
-// Constructor
-//
+@contract_interface
+namespace IAvatarContract {
+    func initialize(owner: felt) {
+    }
 
-@constructor
-func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    name: felt, symbol: felt, owner: felt
+    func balanceOf(owner: felt) -> (balance: Uint256) {
+    }
+
+    func ownerOf(tokenId: Uint256) -> (owner: felt) {
+    }
+
+    func safeTransferFrom(from_: felt, to: felt, tokenId: Uint256, data_len: felt, data: felt*) {
+    }
+
+    func transferFrom(from_: felt, to: felt, tokenId: Uint256) {
+    }
+
+    func approve(approved: felt, tokenId: Uint256) {
+    }
+
+    func setApprovalForAll(operator: felt, approved: felt) {
+    }
+
+    func getApproved(tokenId: Uint256) -> (approved: felt) {
+    }
+
+    func isApprovedForAll(owner: felt, operator: felt) -> (isApproved: felt) {
+    }
+
+    func owner() -> (owner: felt) {
+    }
+
+    func totalSupply() -> (totalSupply: Uint256) {
+    }
+
+    func mint(to: felt, tokenId: Uint256) {
+    }
+
+    func tokenURI(tokenId: Uint256) -> (tokenURI_len: felt, tokenURI: felt*) {
+    }
+
+    func upgrade(implementation: felt) {
+    }
+
+    func implementation() -> (implementation: felt) {
+    }
+}
+
+@external
+func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    owner: felt
 ) {
-    ERC721.initializer(name, symbol);
+    Initializable.initialize();
+    ERC721.initializer('Cartridge Avatar', 'AVATAR');
     Ownable.initializer(owner);
+    Proxy.initializer(owner);
     return ();
 }
 
@@ -146,9 +193,8 @@ func avatarData{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
 }
 
 @view
-func paused{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (paused: felt) {
-    let (paused) = Pausable.is_paused();
-    return (paused,);
+func implementation{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (implementation: felt) {
+    return Proxy.get_implementation_hash();
 }
 
 //
@@ -159,8 +205,9 @@ func paused{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -
 func approve{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
     to: felt, tokenId: Uint256
 ) {
-    Pausable.assert_not_paused();
-    ERC721.approve(to, tokenId);
+    with_attr error_message("Soulbound NFT cannot be transferred") {
+        assert 0 = 1;
+    }
     return ();
 }
 
@@ -168,8 +215,9 @@ func approve{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
 func setApprovalForAll{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     operator: felt, approved: felt
 ) {
-    Pausable.assert_not_paused();
-    ERC721.set_approval_for_all(operator, approved);
+    with_attr error_message("Soulbound NFT cannot be transferred") {
+        assert 0 = 1;
+    }
     return ();
 }
 
@@ -197,22 +245,32 @@ func safeTransferFrom{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_chec
 func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
     to: felt, tokenId: Uint256
 ) {
-    Pausable.assert_not_paused();
     Ownable.assert_only_owner();
     ERC721._mint(to, tokenId);
     return ();
 }
 
 @external
-func pause{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
-    Ownable.assert_only_owner();
-    Pausable._pause();
+func transferOwnership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    newOwner: felt
+) {
+    Ownable.transfer_ownership(newOwner);
+    Proxy._set_admin(newOwner);
     return ();
 }
 
 @external
-func unpause{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
-    Ownable.assert_only_owner();
-    Pausable._unpause();
+func renounceOwnership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    Ownable.renounce_ownership();
+    Proxy._set_admin(0);
+    return ();
+}
+
+@external
+func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    implementation: felt
+) {
+    Proxy.assert_only_admin();
+    Proxy._set_implementation_hash(implementation);
     return ();
 }

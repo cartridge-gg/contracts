@@ -1,19 +1,13 @@
-["protostar.config"]
-protostar_version = "0.4.2"
+[project]
+protostar-version = "0.7.0"
+lib-path = "lib"
+cairo-path = ["./lib/cairo_contracts/src", "./lib/starknet_plugin_account/contracts"]
 
-["protostar.project"]
-libs_path = "lib"
-
-["protostar.contracts"]
-main = [
-    "./src/tokens/Avatar/Avatar.cairo",
-]
-points = [
-    "./src/tokens/Points/Points.cairo",
-]
-achievements = [
-    "./src/tokens/Achievements/Achievements.cairo",
-]
-
-["protostar.shared_command_configs"]
-cairo_path = ["./lib/cairo_contracts/src"]
+[contracts]
+account = ["lib/cartridge_controller/src/account/PluginAccount.cairo"]
+account_proxy = ["lib/cartridge_controller/src/upgrade/Proxy.cairo"]
+achievements = ["src/tokens/achievements/Achievements.cairo"]
+avatar = ["src/tokens/Avatar/Avatar.cairo"]
+controller = ["lib/cartridge_controller/src/controller/Controller.cairo"]
+experience = ["src/tokens/experience/Experience.cairo"]
+proxy = ["lib/cairo_contracts/src/openzeppelin/upgrades/presets/proxy.cairo"]

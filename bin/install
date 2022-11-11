@@ -1,5 +1,0 @@
-#!/bin/bash
-set -eu
-
-protostar install
-cd lib/cairo_webauthn && protostar install && cd ../..
