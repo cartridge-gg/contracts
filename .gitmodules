@@ -1,11 +1,3 @@
-[submodule "argent_contracts_starknet"]
-	url = https://github.com/argentlabs/argent-contracts-starknet
-	path = lib/argent_contracts_starknet
-	branch = refs/heads/v0.2.2
-[submodule "cairo_webauthn"]
-	url = https://github.com/cartridge-gg/cairo-webauthn
-	path = lib/cairo_webauthn
 [submodule "cairo_contracts"]
 	url = https://github.com/OpenZeppelin/cairo-contracts
 	path = lib/cairo_contracts
-	branch = refs/heads/v0.3.0
