@@ -17,29 +17,29 @@ struct Progress {
 }
 
 func get_progress{range_check_ptr}(
-    points: Uint256
+    xp: Uint256
 ) -> (progress: Progress) {
     alloc_locals;
 
-    // let (res) = uint256_lt(points, Uint256(200, 0));
+    // let (res) = uint256_lt(xp, Uint256(200, 0));
     // if(res == 0) {
     //     let (progress) = LEVEL_4();
     //     return (progress=progress);
     // } 
 
-    let (res) = uint256_lt(points, Uint256(100, 0));
+    let (res) = uint256_lt(xp, Uint256(100, 0));
     if(res == 0) {
         let (progress) = LEVEL_3();
         return (progress=progress);
     } 
 
-    let (res) = uint256_lt(points, Uint256(50, 0));
+    let (res) = uint256_lt(xp, Uint256(50, 0));
     if(res == 0) {
         let (progress) = LEVEL_2();
         return (progress=progress);
     } 
 
-    let (res) = uint256_lt(points, Uint256(20, 0));
+    let (res) = uint256_lt(xp, Uint256(20, 0));
     if(res == 0) {
         let (progress) = LEVEL_1();
         return (progress=progress);

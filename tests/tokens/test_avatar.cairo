@@ -8,7 +8,7 @@ from starkware.cairo.common.dict import dict_write, dict_update, dict_read, dict
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.bool import TRUE, FALSE
 from src.tokens.Avatar.Avatar import (
-    IPointsContract,
+    IExperienceContract,
     IAvatarContract,
 )
 from src.tokens.Avatar.progress import (
@@ -178,16 +178,19 @@ func test_border{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 func test_progression{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     alloc_locals;
 
-    local points_address: felt;
+    local contract_address: felt;
+    local xp_implementation: felt;
 
     %{
-        ids.points_address = deploy_contract("./src/tokens/Points/Points.cairo", 
-            [3333, 3333, 18, 200, 0, 123, 123]).contract_address
+        from starkware.starknet.compiler.compile import get_selector_from_name
+        ids.xp_implementation = declare("./src/tokens/experience/Experience.cairo").class_hash
+        ids.contract_address = deploy_contract("./lib/cairo_contracts/src/openzeppelin/upgrades/presets/Proxy.cairo",[ids.xp_implementation, get_selector_from_name('initialize'), 1, 123]).contract_address
+        stop_prank_callable = start_prank(123, target_contract_address=ids.contract_address)
     %}
 
-    let (points) = IPointsContract.balanceOf(points_address, 123);
-    let (progress: Progress) = get_progress(points);
-    assert progress.dimension = 12;
+    let (xp) = IExperienceContract.balanceOf(contract_address, 123);
+    let (progress: Progress) = get_progress(xp);
+    assert progress.dimension = 8;
 
     return ();
 }
