@@ -1,19 +1,9 @@
-["protostar.config"]
-protostar_version = "0.4.2"
-
-["protostar.project"]
-libs_path = "lib"
-
-["protostar.contracts"]
-main = [
-    "./src/tokens/Avatar/Avatar.cairo",
-]
-points = [
-    "./src/tokens/Points/Points.cairo",
-]
-achievements = [
-    "./src/tokens/Achievements/Achievements.cairo",
-]
-
-["protostar.shared_command_configs"]
+[project]
+protostar-version = "0.7.0"
+lib-path = "lib"
 cairo_path = ["./lib/cairo_contracts/src"]
+
+[contracts]
+main = ["src/tokens/Avatar/Avatar.cairo"]
+experience = ["src/tokens/experience/Points.cairo"]
+achievements = ["src/tokens/achievements/Achievements.cairo"]

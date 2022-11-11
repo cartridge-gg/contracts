@@ -14,7 +14,6 @@ from openzeppelin.security.pausable.library import Pausable
 from openzeppelin.access.ownable.library import Ownable
 from openzeppelin.upgrades.library import Proxy
 
-
 from src.tokens.Avatar.library import create_tokenURI, create_data
 from src.tokens.Avatar.progress import get_progress
 from src.util.str import string, str_concat, str_from_literal
@@ -260,6 +259,22 @@ func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
     Pausable.assert_not_paused();
     Ownable.assert_only_owner();
     ERC721._mint(to, tokenId);
+    return ();
+}
+
+@external
+func transferOwnership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    newOwner: felt
+) {
+    Ownable.transfer_ownership(newOwner);
+    Proxy._set_admin(newOwner);
+    return ();
+}
+
+@external
+func renounceOwnership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    Ownable.renounce_ownership();
+    Proxy._set_admin(0);
     return ();
 }
 

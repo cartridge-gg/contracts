@@ -10,14 +10,18 @@ from starkware.cairo.common.uint256 import Uint256
 from openzeppelin.token.erc20.library import ERC20
 from openzeppelin.access.ownable.library import Ownable
 from openzeppelin.security.pausable.library import Pausable
+from openzeppelin.security.initializable.library import Initializable
+from openzeppelin.upgrades.library import Proxy
 
-@constructor
-func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    name: felt, symbol: felt, decimals: felt, initial_supply: Uint256, recipient: felt, owner: felt
+@external
+func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    owner: felt
 ) {
-    ERC20.initializer(name, symbol, decimals);
-    ERC20._mint(recipient, initial_supply);
+    Initializable.initialize();
+    ERC20.initializer("Experience", "XP", 18);
     Ownable.initializer(owner);
+    Proxy.initializer(owner);
+    Pausable.pause();
     return ();
 }
 
@@ -79,6 +83,11 @@ func owner{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() ->
 func paused{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (paused: felt) {
     let (paused) = Pausable.is_paused();
     return (paused,);
+}
+
+@view
+func implementation{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (implementation: felt) {
+    return Proxy.get_implementation_hash();
 }
 
 //
@@ -144,12 +153,14 @@ func transferOwnership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_che
     newOwner: felt
 ) {
     Ownable.transfer_ownership(newOwner);
+    Proxy._set_admin(newOwner);
     return ();
 }
 
 @external
 func renounceOwnership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     Ownable.renounce_ownership();
+    Proxy._set_admin(0);
     return ();
 }
 
@@ -164,5 +175,14 @@ func pause{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
 func unpause{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     Ownable.assert_only_owner();
     Pausable._unpause();
+    return ();
+}
+
+@external
+func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    implementation: felt
+) {
+    Proxy.assert_only_admin();
+    Proxy._set_implementation_hash(implementation);
     return ();
 }
