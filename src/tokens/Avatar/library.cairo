@@ -240,18 +240,18 @@ func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt)
     return (primary=cast(pri_addr, felt*), secondary=cast(sec_addr, felt*), size=5);
 
     pri_start:
-    dw '#FBCB4A';
+    dw '#E15B49';
     dw '#A7E7A7';
     dw '#FBCB4A';
     dw '#7563A3';
     dw '#73C4FF';
 
     sec_start: 
-    dw '#614f1d';
-    dw '#3d543d';
-    dw '#4f4016';
-    dw '#322a47';
-    dw '#1e3342';
+    dw '#451C16';
+    dw '#3D543D';
+    dw '#4F4016';
+    dw '#322A47';
+    dw '#1E3342';
 }
 
 func get_color{range_check_ptr}(
