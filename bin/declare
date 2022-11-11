@@ -1,5 +1,10 @@
 #!/bin/bash
 set -eu
 
-# nile declare --network goerli --alias account PluginAccount
-nile declare --network goerli --alias controller Controller
+protostar declare ./build/account.json --network=testnet
+protostar declare ./build/account_proxy.json --network=testnet
+protostar declare ./build/achievements.json --network=testnet
+protostar declare ./build/avatar.json --network=testnet
+protostar declare ./build/controller.json --network=testnet
+protostar declare ./build/experience.json --network=testnet
+protostar declare ./build/proxy.json --network=testnet

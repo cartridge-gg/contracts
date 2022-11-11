@@ -8,19 +8,22 @@ First, install nile + protostar.
 
 Then install the package dependencies:
 ```sh
-bin/install
+protostar install
 ```
 
-## Compile
+## Build
 
 ```sh
-bin/compile
+protostar build
 ```
 
 ## Declare
 
-First, remove the existing alias in `*.declarations.txt` if it exists. Then, modify `bin/declare` to declare the contracts you are interested.
-
 ```sh
-bin/declare
+protostar declare ./build/account.json --network=testnet
+protostar declare ./build/account_proxy.json --network=testnet
+protostar declare ./build/avatar.json --network=testnet
+protostar declare ./build/controller.json --network=testnet
+protostar declare ./build/experience.json --network=testnet
+protostar declare ./build/proxy.json --network=testnet
 ```
