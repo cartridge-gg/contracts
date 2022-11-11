@@ -10,7 +10,6 @@ from starkware.cairo.common.alloc import alloc
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.security.initializable.library import Initializable
-from openzeppelin.security.pausable.library import Pausable
 from openzeppelin.access.ownable.library import Ownable
 from openzeppelin.upgrades.library import Proxy
 
@@ -56,12 +55,6 @@ namespace IAvatarContract {
     }
 
     func owner() -> (owner: felt) {
-    }
-
-    func paused() -> (paused: felt) {
-    }
-
-    func unpause() {
     }
 
     func totalSupply() -> (totalSupply: Uint256) {
@@ -200,12 +193,6 @@ func avatarData{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
 }
 
 @view
-func paused{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (paused: felt) {
-    let (paused) = Pausable.is_paused();
-    return (paused,);
-}
-
-@view
 func implementation{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (implementation: felt) {
     return Proxy.get_implementation_hash();
 }
@@ -218,8 +205,9 @@ func implementation{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
 func approve{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
     to: felt, tokenId: Uint256
 ) {
-    Pausable.assert_not_paused();
-    ERC721.approve(to, tokenId);
+    with_attr error_message("Soulbound NFT cannot be transferred") {
+        assert 0 = 1;
+    }
     return ();
 }
 
@@ -227,8 +215,9 @@ func approve{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
 func setApprovalForAll{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     operator: felt, approved: felt
 ) {
-    Pausable.assert_not_paused();
-    ERC721.set_approval_for_all(operator, approved);
+    with_attr error_message("Soulbound NFT cannot be transferred") {
+        assert 0 = 1;
+    }
     return ();
 }
 
@@ -256,7 +245,6 @@ func safeTransferFrom{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_chec
 func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
     to: felt, tokenId: Uint256
 ) {
-    Pausable.assert_not_paused();
     Ownable.assert_only_owner();
     ERC721._mint(to, tokenId);
     return ();
@@ -275,20 +263,6 @@ func transferOwnership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_che
 func renounceOwnership{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     Ownable.renounce_ownership();
     Proxy._set_admin(0);
-    return ();
-}
-
-@external
-func pause{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
-    Ownable.assert_only_owner();
-    Pausable._pause();
-    return ();
-}
-
-@external
-func unpause{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
-    Ownable.assert_only_owner();
-    Pausable._unpause();
     return ();
 }
 

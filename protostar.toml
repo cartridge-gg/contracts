@@ -1,9 +1,9 @@
 [project]
 protostar-version = "0.7.0"
 lib-path = "lib"
-cairo_path = ["./lib/cairo_contracts/src"]
+cairo-path = ["./lib/cairo_contracts/src"]
 
 [contracts]
-main = ["src/tokens/Avatar/Avatar.cairo"]
-experience = ["src/tokens/experience/Points.cairo"]
 achievements = ["src/tokens/achievements/Achievements.cairo"]
+avatar = ["src/tokens/Avatar/Avatar.cairo"]
+experience = ["src/tokens/experience/Experience.cairo"]

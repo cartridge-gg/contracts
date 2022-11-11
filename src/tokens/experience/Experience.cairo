@@ -18,10 +18,10 @@ func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     owner: felt
 ) {
     Initializable.initialize();
-    ERC20.initializer("Experience", "XP", 18);
+    ERC20.initializer('Experience', 'XP', 18);
     Ownable.initializer(owner);
     Proxy.initializer(owner);
-    Pausable.pause();
+    Pausable._pause();
     return ();
 }
 
