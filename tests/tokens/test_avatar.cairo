@@ -6,8 +6,9 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.cairo.common.dict import dict_write, dict_update, dict_read, dict_new
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.bool import TRUE, FALSE
 from src.tokens.Avatar.Avatar import (
-    IPointsContract,
+    IExperienceContract,
     IAvatarContract,
 )
 from src.tokens.Avatar.progress import (
@@ -20,7 +21,7 @@ from src.tokens.Avatar.library import (
     get_fingerprint,
     create_grid, 
     init_dict, 
-    evolve, 
+    grow, 
     num_neighbors, 
     check_above, 
     check_below, 
@@ -93,7 +94,7 @@ func test_num_neighbor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_che
 }
 
 @external
-func test_evolve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+func test_grow{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     alloc_locals;
 
     //     1 0 1 1 0 1 0       0 0 0 1 0 0 0    
@@ -119,7 +120,7 @@ func test_evolve{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     dict_write{dict_ptr=input_end}(key=12, new_value=0);
     dict_write{dict_ptr=input_end}(key=13, new_value=1);
 
-    let (input_end, output_end) = evolve(n_steps=14, input=input_end, output=output_end);
+    let (input_end, output_end) = grow(n_steps=14, input=input_end, output=output_end);
 
     let(finalized_output_start, finalized_output_end) = default_dict_finalize(output_start, output_end, 0);
     let(finalized_input_start, finalized_input_end) = default_dict_finalize(input_start, input_end, 0);
@@ -153,7 +154,7 @@ func test_border{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     dict_write{dict_ptr=input_end}(key=11, new_value=1);
     dict_write{dict_ptr=input_end}(key=27, new_value=1);
 
-    let (dict) = add_border(input_end, MAX_STEPS);
+    let (dict) = add_border(input_end, MAX_STEPS, border=TRUE);
 
     let (value) = dict_read{dict_ptr=dict}(key=3);
     assert value = CellType.BORDER;
@@ -177,16 +178,19 @@ func test_border{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 func test_progression{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     alloc_locals;
 
-    local points_address: felt;
+    local contract_address: felt;
+    local xp_implementation: felt;
 
     %{
-        ids.points_address = deploy_contract("./src/tokens/Points/Points.cairo", 
-            [3333, 3333, 18, 200, 0, 123, 123]).contract_address
+        from starkware.starknet.compiler.compile import get_selector_from_name
+        ids.xp_implementation = declare("./src/tokens/experience/Experience.cairo").class_hash
+        ids.contract_address = deploy_contract("./lib/cairo_contracts/src/openzeppelin/upgrades/presets/Proxy.cairo",[ids.xp_implementation, get_selector_from_name('initialize'), 1, 123]).contract_address
+        stop_prank_callable = start_prank(123, target_contract_address=ids.contract_address)
     %}
 
-    let (points) = IPointsContract.balanceOf(points_address, 123);
-    let (progress: Progress) = get_progress(points);
-    assert progress.dimension = 12;
+    let (xp) = IExperienceContract.balanceOf(contract_address, 123);
+    let (progress: Progress) = get_progress(xp);
+    assert progress.dimension = 8;
 
     return ();
 }

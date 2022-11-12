@@ -17,10 +17,10 @@ from src.tokens.Avatar.library import create_tokenURI, create_data
 from src.tokens.Avatar.progress import get_progress
 from src.util.str import string, str_concat, str_from_literal
 
-const POINTS_CONTRACT = 0x00c62540e9a10c47a4b7d8abaff468192c66f2d1e979f6bade6e44bf73995982;
+const EXPERIENCE_CONTRACT = 0x00c62540e9a10c47a4b7d8abaff468192c66f2d1e979f6bade6e44bf73995982;
 
 @contract_interface
-namespace IPointsContract {
+namespace IExperienceContract {
     func balanceOf(account: felt) -> (balance: Uint256) {
     }
 }
@@ -141,16 +141,16 @@ func isApprovedForAll{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 }
 
 @view
-func getPoints{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+func getXp{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     tokenId: Uint256
-) -> (points: Uint256) {
+) -> (xp: Uint256) {
     alloc_locals;
     let account = (tokenId.high * 0x100000000000000000000000000000000) + tokenId.low;
-    let (points) = IPointsContract.balanceOf(
-        contract_address=POINTS_CONTRACT, 
+    let (xp) = IExperienceContract.balanceOf(
+        contract_address=EXPERIENCE_CONTRACT, 
         account=account
     );
-    return (points=points);
+    return (xp=xp);
 }
 
 @view
@@ -158,8 +158,8 @@ func tokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     tokenId: Uint256
 ) -> (tokenURI_len: felt, tokenURI: felt*) {
     alloc_locals;
-    let (points) = getPoints(tokenId);
-    let (progress) = get_progress(points);
+    let (xp) = getXp(tokenId);
+    let (progress) = get_progress(xp);
     let (svg) = create_tokenURI(seed=tokenId.low, progress=progress);
     return (tokenURI_len=svg.arr_len, tokenURI=svg.arr);
 }
@@ -173,13 +173,13 @@ func avatarData{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     padding: felt, 
     scale: felt, 
     dimension: felt, 
-    points: Uint256,
+    xp: Uint256,
     fingerprint: felt,
 ) {
     alloc_locals;
 
-    let (points) = getPoints(tokenId);
-    let (progress) = get_progress(points);
+    let (xp) = getXp(tokenId);
+    let (progress) = get_progress(xp);
     let (rows, cols, padding, scale, dimension, fingerprint) = create_data(seed=tokenId.low, progress=progress);
     return(
         rows=rows, 
@@ -187,7 +187,7 @@ func avatarData{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
         padding=padding, 
         scale=scale, 
         dimension=dimension,
-        points=points,
+        xp=xp,
         fingerprint=fingerprint
     );
 }
