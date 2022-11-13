@@ -472,7 +472,7 @@ func generate_svg{syscall_ptr: felt*, range_check_ptr}(
     return (svg_str,);
 }
 
-func create_data{syscall_ptr: felt*, range_check_ptr}(
+func metadata{syscall_ptr: felt*, range_check_ptr}(
     seed: felt, 
     progress: Progress
 ) -> (
