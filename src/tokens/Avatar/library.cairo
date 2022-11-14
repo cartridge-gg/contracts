@@ -237,7 +237,7 @@ func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt)
     let (pri_addr) = get_label_location(pri_start);
     let (sec_addr) = get_label_location(sec_start);
 
-    return (primary=cast(pri_addr, felt*), secondary=cast(sec_addr, felt*), size=5);
+    return (primary=cast(pri_addr, felt*), secondary=cast(sec_addr, felt*), size=6);
 
     pri_start:
     dw '#E15B49';
@@ -245,13 +245,15 @@ func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt)
     dw '#FBCB4A';
     dw '#7563A3';
     dw '#73C4FF';
+    dw '#FFF';
 
     sec_start: 
-    dw '#451C16';
+    dw '#5C251D';
     dw '#3D543D';
     dw '#4F4016';
     dw '#322A47';
     dw '#1E3342';
+    dw '#888';
 }
 
 func get_color{range_check_ptr}(
