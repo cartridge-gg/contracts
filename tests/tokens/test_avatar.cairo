@@ -17,7 +17,6 @@ from src.tokens.Avatar.progress import (
 )
 from src.tokens.Avatar.library import (
     init_character,
-    generate,
     get_fingerprint,
     create_grid, 
     init_dict, 
