@@ -18,6 +18,7 @@ from src.tokens.Avatar.progress import (
 from src.tokens.Avatar.library import (
     init_character,
     generate_svg,
+    attributes,
     get_fingerprint,
     create_grid, 
     init_dict, 
@@ -224,4 +225,44 @@ func test_upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     %}
 
     return ();
+}
+
+@external
+func test_token_uri{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
+    alloc_locals;
+
+    local avatar_implementation: felt;
+    local avatar_address: felt;
+    local xp_implementation: felt;
+    local xp_address: felt;
+
+    %{
+        from starkware.starknet.compiler.compile import get_selector_from_name
+        ids.xp_implementation = declare("./src/tokens/experience/Experience.cairo").class_hash
+        ids.xp_address = deploy_contract("./lib/cairo_contracts/src/openzeppelin/upgrades/presets/Proxy.cairo",[ids.xp_implementation, get_selector_from_name('initialize'), 1, 123]).contract_address
+        ids.avatar_implementation = declare("./src/tokens/Avatar/Avatar.cairo").class_hash
+        ids.avatar_address = deploy_contract("./lib/cairo_contracts/src/openzeppelin/upgrades/presets/Proxy.cairo",[ids.avatar_implementation, get_selector_from_name('initialize'), 2, 123, ids.xp_address]).contract_address
+        stop_prank_callable = start_prank(123, target_contract_address=ids.avatar_address)
+    %}
+
+    let (uri_len, uri) = IAvatarContract.tokenURI(avatar_address, Uint256(low=0x121312133121212, high=0));
+
+    %{
+        parts = memory.get_range(ids.uri, ids.uri_len)
+        svg = ""
+        for felt in parts:
+            try:
+                bytes_object = bytes.fromhex(hex(felt)[2:])
+                ascii_string = bytes_object.decode("ASCII")
+                svg += ascii_string
+            except:
+                print(felt)
+
+        with open('tests/tokens/test_avatar.json', 'w') as f:
+            f.write(svg)
+
+        stop_prank_callable()
+    %}
+
+    return();
 }

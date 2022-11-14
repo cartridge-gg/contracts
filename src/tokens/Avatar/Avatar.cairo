@@ -149,9 +149,10 @@ func tokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 ) -> (tokenURI_len: felt, tokenURI: felt*) {
     alloc_locals;
     let (exp_addr) = Avatar_experience_contract.read();
+    let account = (tokenId.high * 0x100000000000000000000000000000000) + tokenId.low;
     let (xp) = IExperienceContract.balanceOf(
         contract_address=exp_addr, 
-        account=tokenId
+        account=account
     );
     let (progress) = get_progress(xp);
     let (svg) = create_tokenURI(seed=tokenId.low, progress=progress);
