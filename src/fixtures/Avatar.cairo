@@ -1,6 +1,7 @@
 %lang starknet
 
-from src.tokens.Avatar.library import Cell, generate_svg
+from src.tokens.Avatar.library import Cell, generate_svg, create_tokenURI
+from src.tokens.Avatar.progress import Progress
 from src.util.str import string
 
 @external

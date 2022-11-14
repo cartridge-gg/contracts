@@ -19,7 +19,7 @@ from src.tokens.Avatar.progress import get_progress, Progress
 
 struct CellType {
     EMPTY: felt,
-    BODY: felt,
+    BASE: felt,
     BORDER: felt,
 }
 
@@ -113,7 +113,7 @@ func init_dict{range_check_ptr}(
     let key = MAX_STEPS - n_steps;
     
     if (event == 1) {
-        dict_write{dict_ptr=dict}(key=key, new_value=CellType.BODY);
+        dict_write{dict_ptr=dict}(key=key, new_value=CellType.BASE);
     } else {
         dict_write{dict_ptr=dict}(key=key, new_value=CellType.EMPTY);
     }
@@ -215,7 +215,7 @@ func grow{range_check_ptr}(
         let continue = is_in_range(neighbors, 2, 4);
 
         if(continue == TRUE) {
-            dict_write{dict_ptr=output}(key=key, new_value=CellType.BODY);
+            dict_write{dict_ptr=output}(key=key, new_value=CellType.BASE);
             return grow(n_steps=n_steps - 1, input=input, output=output);
         }
 
@@ -225,7 +225,7 @@ func grow{range_check_ptr}(
         let rebirth = is_le(neighbors, 1);
 
         if(rebirth == TRUE) {
-            dict_write{dict_ptr=output}(key=key, new_value=CellType.BODY);
+            dict_write{dict_ptr=output}(key=key, new_value=CellType.BASE);
             return grow(n_steps=n_steps - 1, input=input, output=output);
         }
 
@@ -255,7 +255,7 @@ func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt)
 }
 
 func get_color{range_check_ptr}(
-    cell: Cell*, seed: felt, n_steps: felt, event: felt
+    seed: felt, event: felt
 ) -> (color: felt) {
     alloc_locals;
 
@@ -298,7 +298,7 @@ func crop{range_check_ptr}(
     let cell: Cell* = grid + (Cell.SIZE * key);
     let (inside) = contains(dimension, cell);
 
-    if(event == CellType.BODY and inside != TRUE) {
+    if(event == CellType.BASE and inside != TRUE) {
         dict_write{dict_ptr=dict}(key=key, new_value=0);
         return crop(dict=dict, dimension=dimension, grid=grid, n_steps=n_steps - 1);
     }
@@ -346,7 +346,7 @@ func render{range_check_ptr}(
     let cell: Cell* = grid + (Cell.SIZE * key);
     
     if(event != CellType.EMPTY) {
-        let (color) = get_color(cell, seed, n_steps, event);
+        let (color) = get_color(seed, event);
 
         let svg_rect_left = SvgRect(x=cell.col - 1, y=cell.row - 1, fill=color);
         let (rect_str: string) = str_from_svg_rect(svg_rect_left);
@@ -472,32 +472,38 @@ func generate_svg{syscall_ptr: felt*, range_check_ptr}(
     return (svg_str,);
 }
 
-func create_data{syscall_ptr: felt*, range_check_ptr}(
+func attributes{syscall_ptr: felt*, range_check_ptr}(
     seed: felt, 
     progress: Progress
-) -> (
-    rows: felt,
-    cols: felt,
-    padding: felt,
-    scale: felt,
-    dimension: felt,
-    fingerprint: felt,
-) {
+) -> (str: string) {
     alloc_locals;
 
     let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
     let (dict: DictAccess*) = init_character(seed=seed, evolution=progress.evolution);
     let (dict: DictAccess*) = crop(dict=dict, dimension=progress.dimension, grid=grid, n_steps=MAX_STEPS);
     let (dict, fingerprint) = get_fingerprint(dict=dict, data=0, n_steps=MAX_STEPS);
+    let (base_color) = get_color(seed, CellType.BASE);
+    let (border_color) = get_color(seed, CellType.BORDER);
 
-    return (
-        rows=MAX_ROW, 
-        cols=MAX_COL, 
-        padding=PADDING, 
-        scale=SCALE,
-        dimension=progress.dimension,
-        fingerprint=fingerprint
-    );
+    let (dimension) = literal_from_number(progress.dimension);
+    let (fingerprint_) = literal_from_number(fingerprint);
+
+    let (arr) = alloc();
+    assert arr[0] = '","attributes":[{"trait_type":';
+    assert arr[1] = '"Base Color","value":"';
+    assert arr[2] = base_color;
+    assert arr[3] = '"},{"trait_type":"Border Color"';
+    assert arr[4] = ',"value":"';
+    assert arr[5] = border_color;
+    assert arr[6] = '"},{"trait_type":"Dimension"';
+    assert arr[7] = ',"value":"';
+    assert arr[8] = dimension;
+    assert arr[9] = '"},{"trait_type":"Fingerprint"';
+    assert arr[10] = ',"value":"';
+    assert arr[11] = fingerprint_;
+    assert arr[12] = '"}]';
+
+    return (string(13, arr),);
 }
 
 func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
@@ -518,6 +524,8 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
         bg_color=progress.bg_color,
     );
 
+    let (attributes_str) = attributes(seed=seed, progress=progress);
+
     let (data_prefix_label) = get_label_location(dw_prefix);
     tempvar data_prefix = string(1, cast(data_prefix_label, felt*));
 
@@ -527,13 +535,13 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
     let (data_content_label) = get_label_location(dw_content);
     tempvar data_content = string(5, cast(data_content_label, felt*));
 
-    let (data_end_label) = get_label_location(dw_end);
-    tempvar data_end = string(1, cast(data_end_label, felt*));
+    let (end_str) = str_from_literal('}');
 
     let (result) = str_concat(data_prefix, data_content);
     let (result) = str_concat(string(result.arr_len, result.arr), data_xml_header);
     let (result) = str_concat(string(result.arr_len, result.arr), svg_str);
-    let (result) = str_concat(string(result.arr_len, result.arr), data_end);
+    let (result) = str_concat(string(result.arr_len, result.arr), attributes_str);
+    let (result) = str_concat(string(result.arr_len, result.arr), end_str);
 
     return (result,);
 
@@ -550,7 +558,4 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
     dw_xml_header:
     dw '<?xml version=\"1.0\"';
     dw ' encoding=\"UTF-8\"?>';
-
-    dw_end:
-    dw '"}';
 }

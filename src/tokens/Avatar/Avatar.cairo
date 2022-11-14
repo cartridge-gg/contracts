@@ -13,11 +13,13 @@ from openzeppelin.security.initializable.library import Initializable
 from openzeppelin.access.ownable.library import Ownable
 from openzeppelin.upgrades.library import Proxy
 
-from src.tokens.Avatar.library import create_tokenURI, create_data
+from src.tokens.Avatar.library import create_tokenURI
 from src.tokens.Avatar.progress import get_progress
 from src.util.str import string, str_concat, str_from_literal
 
-const EXPERIENCE_CONTRACT = 0x00c62540e9a10c47a4b7d8abaff468192c66f2d1e979f6bade6e44bf73995982;
+@storage_var
+func Avatar_experience_contract() -> (res : felt) {
+}
 
 @contract_interface
 namespace IExperienceContract {
@@ -75,12 +77,13 @@ namespace IAvatarContract {
 
 @external
 func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    owner: felt
+    owner: felt, experience_contract: felt,
 ) {
     Initializable.initialize();
     ERC721.initializer('Cartridge Avatar', 'AVATAR');
     Ownable.initializer(owner);
     Proxy.initializer(owner);
+    Avatar_experience_contract.write(experience_contract);
     return ();
 }
 
@@ -141,55 +144,19 @@ func isApprovedForAll{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 }
 
 @view
-func getXp{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256
-) -> (xp: Uint256) {
-    alloc_locals;
-    let account = (tokenId.high * 0x100000000000000000000000000000000) + tokenId.low;
-    let (xp) = IExperienceContract.balanceOf(
-        contract_address=EXPERIENCE_CONTRACT, 
-        account=account
-    );
-    return (xp=xp);
-}
-
-@view
 func tokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     tokenId: Uint256
 ) -> (tokenURI_len: felt, tokenURI: felt*) {
     alloc_locals;
-    let (xp) = getXp(tokenId);
+    let (exp_addr) = Avatar_experience_contract.read();
+    let account = (tokenId.high * 0x100000000000000000000000000000000) + tokenId.low;
+    let (xp) = IExperienceContract.balanceOf(
+        contract_address=exp_addr, 
+        account=account
+    );
     let (progress) = get_progress(xp);
     let (svg) = create_tokenURI(seed=tokenId.low, progress=progress);
     return (tokenURI_len=svg.arr_len, tokenURI=svg.arr);
-}
-
-@view
-func avatarData{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    tokenId: Uint256
-) -> (
-    rows: felt, 
-    cols: felt, 
-    padding: felt, 
-    scale: felt, 
-    dimension: felt, 
-    xp: Uint256,
-    fingerprint: felt,
-) {
-    alloc_locals;
-
-    let (xp) = getXp(tokenId);
-    let (progress) = get_progress(xp);
-    let (rows, cols, padding, scale, dimension, fingerprint) = create_data(seed=tokenId.low, progress=progress);
-    return(
-        rows=rows, 
-        cols=cols, 
-        padding=padding, 
-        scale=scale, 
-        dimension=dimension,
-        xp=xp,
-        fingerprint=fingerprint
-    );
 }
 
 @view
