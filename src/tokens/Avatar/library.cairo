@@ -485,19 +485,22 @@ func attributes{syscall_ptr: felt*, range_check_ptr}(
     let (base_color) = get_color(seed, CellType.BASE);
     let (border_color) = get_color(seed, CellType.BORDER);
 
+    let (dimension) = literal_from_number(progress.dimension);
+    let (fingerprint_) = literal_from_number(fingerprint);
+
     let (arr) = alloc();
     assert arr[0] = '","attributes":[{"trait_type":';
-    assert arr[1] = '"Base Color"},{"value":"';
+    assert arr[1] = '"Base Color","value":"';
     assert arr[2] = base_color;
     assert arr[3] = '"},{"trait_type":"Border Color"';
-    assert arr[4] = '},{"value":"';
+    assert arr[4] = ',"value":"';
     assert arr[5] = border_color;
     assert arr[6] = '"},{"trait_type":"Dimension"';
-    assert arr[7] = '},{"value":"';
-    assert arr[8] = progress.dimension;
+    assert arr[7] = ',"value":"';
+    assert arr[8] = dimension;
     assert arr[9] = '"},{"trait_type":"Fingerprint"';
-    assert arr[10] = '},{"value":"';
-    assert arr[11] = fingerprint;
+    assert arr[10] = ',"value":"';
+    assert arr[11] = fingerprint_;
     assert arr[12] = '"}]';
 
     return (string(13, arr),);

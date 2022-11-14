@@ -256,7 +256,7 @@ func test_token_uri{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_
                 ascii_string = bytes_object.decode("ASCII")
                 svg += ascii_string
             except:
-                print(felt)
+                print("error", felt)
 
         with open('tests/tokens/test_avatar.json', 'w') as f:
             f.write(svg)
