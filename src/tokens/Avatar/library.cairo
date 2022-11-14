@@ -237,7 +237,7 @@ func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt)
     let (pri_addr) = get_label_location(pri_start);
     let (sec_addr) = get_label_location(sec_start);
 
-    return (primary=cast(pri_addr, felt*), secondary=cast(sec_addr, felt*), size=5);
+    return (primary=cast(pri_addr, felt*), secondary=cast(sec_addr, felt*), size=6);
 
     pri_start:
     dw '#E15B49';
@@ -245,13 +245,15 @@ func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt)
     dw '#FBCB4A';
     dw '#7563A3';
     dw '#73C4FF';
+    dw '#FFF';
 
     sec_start: 
-    dw '#451C16';
+    dw '#5C251D';
     dw '#3D543D';
     dw '#4F4016';
     dw '#322A47';
     dw '#1E3342';
+    dw '#888';
 }
 
 func get_color{range_check_ptr}(
@@ -447,9 +449,9 @@ func init_character{syscall_ptr: felt*, range_check_ptr}(
     return (dict=output);
 }
 
-func generate_svg{syscall_ptr: felt*, range_check_ptr}(
+func generate_str{syscall_ptr: felt*, range_check_ptr}(
     seed: felt, evolution: felt, dimension: felt, border: felt, bg_color: felt
-) -> (svg_str: string) {
+) -> (svg_str: string, attr_str: string) {
     alloc_locals;
 
     let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
@@ -457,6 +459,10 @@ func generate_svg{syscall_ptr: felt*, range_check_ptr}(
     let (dict: DictAccess*) = init_character(seed=seed, evolution=evolution);
     let (dict: DictAccess*) = crop(dict=dict, dimension=dimension, grid=grid, n_steps=MAX_STEPS);
     let (dict: DictAccess*) = add_border(dict=dict, n_steps=MAX_STEPS, border=border);
+    let (dict, fingerprint) = get_fingerprint(dict=dict, data=0, n_steps=MAX_STEPS);
+
+    let (dimension_) = literal_from_number(dimension);
+    let (fingerprint_) = literal_from_number(fingerprint);
 
     let (header_str: string) = return_svg_header(bg_color=bg_color);
     let (body_str: string) = render(
@@ -469,41 +475,35 @@ func generate_svg{syscall_ptr: felt*, range_check_ptr}(
 
     let (close_str: string) = str_from_literal('</svg>');
     let (svg_str: string) = str_concat(body_str, close_str);
-    return (svg_str,);
-}
 
-func attributes{syscall_ptr: felt*, range_check_ptr}(
-    seed: felt, 
-    progress: Progress
-) -> (str: string) {
-    alloc_locals;
-
-    let (grid: Cell*) = create_grid(row=MAX_ROW, col=MAX_COL);
-    let (dict: DictAccess*) = init_character(seed=seed, evolution=progress.evolution);
-    let (dict: DictAccess*) = crop(dict=dict, dimension=progress.dimension, grid=grid, n_steps=MAX_STEPS);
-    let (dict, fingerprint) = get_fingerprint(dict=dict, data=0, n_steps=MAX_STEPS);
     let (base_color) = get_color(seed, CellType.BASE);
-    let (border_color) = get_color(seed, CellType.BORDER);
+    local border_color;
+    if(border == FALSE) {
+        border_color = 'none';
+    } else {
+        let (b) = get_color(seed, CellType.BORDER);
+        border_color = b;
+    }
+    
+    let (attr_str) = alloc();
+    assert attr_str[0] = '","attributes":[{"trait_type":';
+    assert attr_str[1] = '"Base Color","value":"';
+    assert attr_str[2] = base_color;
+    assert attr_str[3] = '"},{"trait_type":"Border Color"';
+    assert attr_str[4] = ',"value":"';
+    assert attr_str[5] = border_color;
+    assert attr_str[6] = '"},{"trait_type":"Background ';
+    assert attr_str[7] = 'Color", "value":"';
+    assert attr_str[8] = bg_color;
+    assert attr_str[9] = '"},{"trait_type":"Dimension"';
+    assert attr_str[10] = ',"value":"';
+    assert attr_str[11] = dimension_;
+    assert attr_str[12] = '"},{"trait_type":"Fingerprint"';
+    assert attr_str[13] = ',"value":"';
+    assert attr_str[14] = fingerprint_;
+    assert attr_str[15] = '"}]';
 
-    let (dimension) = literal_from_number(progress.dimension);
-    let (fingerprint_) = literal_from_number(fingerprint);
-
-    let (arr) = alloc();
-    assert arr[0] = '","attributes":[{"trait_type":';
-    assert arr[1] = '"Base Color","value":"';
-    assert arr[2] = base_color;
-    assert arr[3] = '"},{"trait_type":"Border Color"';
-    assert arr[4] = ',"value":"';
-    assert arr[5] = border_color;
-    assert arr[6] = '"},{"trait_type":"Dimension"';
-    assert arr[7] = ',"value":"';
-    assert arr[8] = dimension;
-    assert arr[9] = '"},{"trait_type":"Fingerprint"';
-    assert arr[10] = ',"value":"';
-    assert arr[11] = fingerprint_;
-    assert arr[12] = '"}]';
-
-    return (string(13, arr),);
+    return (svg_str=svg_str, attr_str=string(16,attr_str));
 }
 
 func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
@@ -516,15 +516,13 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
     
     assert_not_zero(seed);
 
-    let (svg_str) = generate_svg(
+    let (svg_str, attr_str) = generate_str(
         seed=seed, 
         evolution=progress.evolution,
         dimension=progress.dimension, 
         border=progress.border,
         bg_color=progress.bg_color,
     );
-
-    let (attributes_str) = attributes(seed=seed, progress=progress);
 
     let (data_prefix_label) = get_label_location(dw_prefix);
     tempvar data_prefix = string(1, cast(data_prefix_label, felt*));
@@ -540,7 +538,7 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
     let (result) = str_concat(data_prefix, data_content);
     let (result) = str_concat(string(result.arr_len, result.arr), data_xml_header);
     let (result) = str_concat(string(result.arr_len, result.arr), svg_str);
-    let (result) = str_concat(string(result.arr_len, result.arr), attributes_str);
+    let (result) = str_concat(string(result.arr_len, result.arr), attr_str);
     let (result) = str_concat(string(result.arr_len, result.arr), end_str);
 
     return (result,);

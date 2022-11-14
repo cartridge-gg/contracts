@@ -17,8 +17,6 @@ from src.tokens.Avatar.progress import (
 )
 from src.tokens.Avatar.library import (
     init_character,
-    generate_svg,
-    attributes,
     get_fingerprint,
     create_grid, 
     init_dict, 
@@ -208,7 +206,7 @@ func test_upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
         from starkware.starknet.compiler.compile import get_selector_from_name
         ids.initial_implementation = declare("./src/tokens/Avatar/Avatar.cairo").class_hash
         ids.fake_implementation = declare("./src/tokens/Avatar/Avatar.cairo").class_hash
-        ids.contract_address = deploy_contract("./lib/cairo_contracts/src/openzeppelin/upgrades/presets/Proxy.cairo",[ids.initial_implementation, get_selector_from_name('initialize'), 1, 123]).contract_address
+        ids.contract_address = deploy_contract("./lib/cairo_contracts/src/openzeppelin/upgrades/presets/Proxy.cairo",[ids.initial_implementation, get_selector_from_name('initialize'), 2, 123, 123]).contract_address
         stop_prank_callable = start_prank(123, target_contract_address=ids.contract_address)
     %}
 
