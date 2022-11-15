@@ -238,10 +238,11 @@ func colors{range_check_ptr}() -> (base: felt*, size: felt) {
     return (base=cast(base_addr, felt*), size=8);
 
     base_start:
-    dw '#EBBCFB';
-    dw '#A7E7DB';
-    dw '#EE985F';
+    dw '#D98CFD';
+    dw '#B2E9ED';
+    dw '#F18034';
     dw '#B5EE5F';
+    dw '#3BE2ED';
     dw '#5FEEBB';
     dw '#EC5146';
     dw '#EE5FA4';
