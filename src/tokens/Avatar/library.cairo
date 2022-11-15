@@ -403,10 +403,16 @@ func get_fingerprint{syscall_ptr: felt*, range_check_ptr}(
 
     let key = MAX_STEPS - n_steps;
     let (event) = dict_read{dict_ptr=dict}(key=key);
-    let data = (data * 2) + event;  // shift right one bit
+    let data = (data * 2); // shift right one bit
+
+    if(event == CellType.BASE) {
+        let data = data + event; 
+        return get_fingerprint(dict=dict, data=data, n_steps=n_steps-1);
+    }
 
     return get_fingerprint(dict=dict, data=data, n_steps=n_steps-1);
 }
+
 
 func evolve{syscall_ptr: felt*, range_check_ptr}(
     iterations: felt, input: DictAccess*, output: DictAccess*
@@ -449,11 +455,9 @@ func generate_str{syscall_ptr: felt*, range_check_ptr}(
 
     let (dict: DictAccess*) = init_character(seed=seed, evolution=evolution);
     let (dict: DictAccess*) = crop(dict=dict, dimension=dimension, grid=grid, n_steps=MAX_STEPS);
+    let (dict: DictAccess*, fingerprint) = get_fingerprint(dict=dict, data=0, n_steps=MAX_STEPS);
     let (dict: DictAccess*) = add_border(dict=dict, n_steps=MAX_STEPS, border=border);
-    let (dict, fingerprint) = get_fingerprint(dict=dict, data=0, n_steps=MAX_STEPS);
-
     let (dimension_) = literal_from_number(dimension);
-    let (fingerprint_) = literal_from_number(fingerprint);
 
     let (header_str: string) = return_svg_header(bg_color=bg_color);
     let (body_str: string) = render(
@@ -491,7 +495,7 @@ func generate_str{syscall_ptr: felt*, range_check_ptr}(
     assert attr_str[11] = dimension_;
     assert attr_str[12] = '"},{"trait_type":"Fingerprint"';
     assert attr_str[13] = ',"value":"';
-    assert attr_str[14] = fingerprint_;
+    assert attr_str[14] = fingerprint;
     assert attr_str[15] = '"}]';
 
     return (svg_str=svg_str, attr_str=string(16,attr_str));
