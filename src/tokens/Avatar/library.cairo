@@ -233,27 +233,18 @@ func grow{range_check_ptr}(
     }
 }
 
-func colors{range_check_ptr}() -> (primary: felt*, secondary: felt*, size: felt) {
-    let (pri_addr) = get_label_location(pri_start);
-    let (sec_addr) = get_label_location(sec_start);
+func colors{range_check_ptr}() -> (base: felt*, size: felt) {
+    let (base_addr) = get_label_location(base_start);
+    return (base=cast(base_addr, felt*), size=8);
 
-    return (primary=cast(pri_addr, felt*), secondary=cast(sec_addr, felt*), size=6);
-
-    pri_start:
-    dw '#E15B49';
-    dw '#A7E7A7';
-    dw '#FBCB4A';
-    dw '#7563A3';
-    dw '#73C4FF';
-    dw '#FFF';
-
-    sec_start: 
-    dw '#5C251D';
-    dw '#3D543D';
-    dw '#4F4016';
-    dw '#322A47';
-    dw '#1E3342';
-    dw '#888';
+    base_start:
+    dw '#EBBCFB';
+    dw '#A7E7DB';
+    dw '#EE985F';
+    dw '#B5EE5F';
+    dw '#5FEEBB';
+    dw '#EC5146';
+    dw '#EE5FA4';
 }
 
 func get_color{range_check_ptr}(
@@ -261,13 +252,13 @@ func get_color{range_check_ptr}(
 ) -> (color: felt) {
     alloc_locals;
 
-    let (primary, secondary, size) = colors();
+    let (base, size) = colors();
     let (_, idx) = unsigned_div_rem(seed, size);
 
     if(event == CellType.BORDER) {
-        return (color=secondary[idx]);
+        return (color='rgba(255,255,255,0.08)');
     }
-    return (color=primary[idx]);
+    return (color=base[idx]);
 }
 
 func contains{range_check_ptr}(
