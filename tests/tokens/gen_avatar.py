@@ -28,15 +28,6 @@ async def test_generate_avatars():
     for i in range(num_avatars):
         body += "<div>"
         seed = int.from_bytes(os.urandom(16), byteorder="big")
-
-        character = await avatar.test_generate_svg(
-            seed=seed,
-            border=0,
-            dimension=8,
-            evolution=1).execute()
-        recovered_svg = felt_array_to_ascii(character.result.tokenURI)
-        body += recovered_svg.replace('\\"','\"')
-        
         for j in dimensions:
                 character = await avatar.test_generate_svg(
                     seed=seed,
