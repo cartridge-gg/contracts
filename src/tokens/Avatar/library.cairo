@@ -544,9 +544,9 @@ func create_tokenURI{syscall_ptr: felt*, range_check_ptr}(
     dw 'data:application/json,';
 
     dw_content:
-    dw '{"name":"Cartridge Avatar",';
+    dw '{"name":"Olmech",';
     dw '"description":"Starknet ';
-    dw 'experience tracker",';
+    dw 'progressive avatar",';
     dw '"image":';
     dw '"data:image/svg+xml,';
 
