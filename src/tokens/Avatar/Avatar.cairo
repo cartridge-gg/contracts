@@ -80,7 +80,7 @@ func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     owner: felt, experience_contract: felt,
 ) {
     Initializable.initialize();
-    ERC721.initializer('Cartridge Avatar', 'AVATAR');
+    ERC721.initializer('Olmech', 'OLMECH');
     Ownable.initializer(owner);
     Proxy.initializer(owner);
     Avatar_experience_contract.write(experience_contract);
